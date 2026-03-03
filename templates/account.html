@@ -38,7 +38,7 @@
               <div class="col">
                 <label class="form-label fw-semibold">Update Profile Picture</label>
                 <input class="form-control form-control-sm" type="file" name="picture" accept="image/*">
-                <div class="form-text">JPG, PNG or GIF. Max 500 KB.</div>
+                <div class="form-text">JPG, PNG or GIF. Max 2MB.</div>
               </div>
             </div>
 
@@ -88,7 +88,13 @@
       <div class="card border-0 shadow-sm mb-4 text-center p-4 bg-primary text-white">
         <div class="card-body">
           <h6 class="text-uppercase small fw-bold opacity-75">Member Since</h6>
-          <p class="h5 mb-0">March 2026</p> <!-- Consider adding a created_at field to User model later -->
+          <p class="h5 mb-0">
+            {% if current_user.created_at %}
+              {{ current_user.created_at.strftime('%B %Y') }}
+            {% else %}
+              March 2026
+            {% endif %}
+          </p>
         </div>
       </div>
 

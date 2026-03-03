@@ -61,6 +61,7 @@ class User(db.Model, UserMixin):
     email = db.Column(db.String(150), unique=True, nullable=False)
     password = db.Column(db.String(200), nullable=False)
     image_data = db.Column(db.Text, nullable=True) 
+    created_at = db.Column(db.DateTime, default=datetime.now)
     todos = db.relationship('Todo', backref='owner', lazy=True, cascade='all, delete-orphan')
 
 class Category(db.Model):
