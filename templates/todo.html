@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}ToPlanBlock - My ToDo{% endblock %}
+{% block content %}
+<div class="row">
+  <div class="col-lg-4">
+    <h4>Add task</h4>
+    <form method="POST" class="mb-4">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+      <div class="mb-2">
+        <label class="form-label">Task</label>
+        <input class="form-control" type="text" name="task" placeholder="New task..." required>
+      </div>
+      <div class="mb-2">
+        <label class="form-label">Category (comma separated)</label>
+        <textarea class="form-control" name="category" placeholder="e.g., Work, Home, Study"></textarea>
+      </div>
+      <button class="btn btn-success">Add</button>
+    </form>
+
+    <h5 class="mt-4">Existing categories</h5>
+    <div class="d-flex flex-wrap gap-2 mb-4">
+      {% for c in categories %}
+      <a href="{{ url_for('todo', category=c.name) }}"
+        class="badge text-decoration-none {% if c.name in selected_category %}bg-primary{% else %}bg-secondary{% endif %}">
+        {{ c.name }}
+      </a>
+      {% else %}
+      <small class="text-muted">No categories created yet.</small>
+      {% endfor %}
+    </div>
+
+    <hr>
+
+    <h5>Filter tasks</h5>
+    <form method="GET" action="{{ url_for('todo') }}" class="mb-3">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+      <div class="input-group">
+        <input type="text" class="form-control" name="category" placeholder="Filter by categories (e.g. Work, Home)"
+          value="{{ selected_category }}">
+        <button class="btn btn-outline-primary" type="submit">Filter</button>
+      </div>
+      <a href="{{ url_for('todo') }}"
+        class="btn btn-outline-secondary btn-sm mt-2 {% if not selected_category %}active{% endif %}">Clear Filter</a>
+    </form>
+
+  </div>
+
+  <div class="col-lg-8 mt-4 mt-lg-0">
+    {% if selected_category %}
+    <h4 class="mb-3">Tasks (Filtered by: <em>{{ selected_category }}</em>)</h4>
+    {% else %}
+    <h4>Your tasks</h4>
+    {% endif %}
+    <ul class="list-group">
+      {% for t in tasks %}
+      <li class="list-group-item d-flex justify-content-between align-items-center">
+        <div class="d-flex align-items-center gap-3">
+          {% for cat in t.categories %}
+          <span class="badge bg-info">{{ cat.name }}</span>
+          {% endfor %}
+          <span class="{% if t.completed %}text-decoration-line-through text-muted{% endif %}">
+            {{ t.task }}
+          </span>
+        </div>
+        <div class="d-flex gap-2">
+          <form method="POST" action="{{ url_for('toggle', todo_id=t.id, category=selected_category) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+            <button class="btn btn-outline-primary btn-sm" title="Toggle complete">
+              {% if t.completed %}Mark undone{% else %}Mark done{% endif %}
+            </button>
+          </form>
+          <form method="POST" action="{{ url_for('delete', todo_id=t.id, category=selected_category) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+            <button class="btn btn-outline-danger btn-sm" onclick="return confirm('Delete this task?');">Delete</button>
+          </form>
+        </div>
+      </li>
+      {% else %}
+      <li class="list-group-item">No tasks yet{% if not selected_category %}. Add one above!{% endif %}.</li>
+      {% endfor %}
+    </ul>
+  </div>
+</div>
+{% endblock %}
