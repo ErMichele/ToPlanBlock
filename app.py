@@ -19,13 +19,14 @@ load_dotenv()
 
 # --- CONFIGURATION ---
 app.config['SECRET_KEY'] = os.getenv("SECRET_KEY", "secure-fallback-key-for-local-dev")
-database_url = os.getenv('DATABASE_URL', 'sqlite:///todo.db')
-if database_url.startswith("postgres://"):
-    database_url = database_url.replace("postgres://", "postgresql://", 1)
+if os.getenv("BRANCH") == "production":
+    database_url = os.getenv('DATABASE_URL')
+else:
+    database_url = 'sqlite:///todo.db'
 
 app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['MAX_CONTENT_LENGTH'] = 0.5 * 1024 * 1024  # Security: 500KB limit
+app.config['MAX_CONTENT_LENGTH'] = 0.5 * 1024 * 1024  # 500KB limit
 
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
     'pool_size': 5,
@@ -44,15 +45,14 @@ login_manager = LoginManager(app)
 login_manager.login_view = 'login'
 login_manager.login_message_category = 'warning'
 
-# Rate Limiting: Protection against brute-force
 limiter = Limiter(
     get_remote_address,
     app=app,
-    default_limits=["200 per day", "50 per hour", "5 per minute"],
+    default_limits=["200 per day", "50 per hour", "10 per minute"],
     storage_uri="memory://"
 )
 
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg'}
 
 # ---------------- Models ----------------
 class User(db.Model, UserMixin):
@@ -90,7 +90,6 @@ def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 def compress_image(file_storage):
-    """Performance: Resizes and compresses image to save DB space."""
     try:
         img = Image.open(file_storage)
         if img.mode in ("RGBA", "P"):
@@ -179,20 +178,20 @@ def logout():
 @login_required
 def account():
     if request.method == 'POST':
-        # SECURITY: Require password for any changes
-        old_pw = request.form.get('current_password') or request.form.get('old_password')
-        if not old_pw or not bcrypt.check_password_hash(current_user.password, old_pw):
-            flash('Incorrect current password. Changes not saved.', 'danger')
+        # Security: Requires current password for any changes
+        current_pw = request.form.get('current_password') or request.form.get('old_password')
+        if not current_pw or not bcrypt.check_password_hash(current_user.password, current_pw):
+            flash('Incorrect current password.', 'danger')
             return redirect(url_for('account'))
 
-        # 1. Update Info
+        # Update Username/Email
         new_username = request.form.get('username', '').strip()
         new_email = request.form.get('email', '').strip().lower()
         if new_username and new_email:
             current_user.username = new_username
             current_user.email = new_email
 
-        # 2. Picture
+        # Handle Picture
         if 'picture' in request.files:
             file = request.files['picture']
             if file and allowed_file(file.filename):
@@ -200,7 +199,7 @@ def account():
                 if comp_data:
                     current_user.image_data = base64.b64encode(comp_data).decode('ascii')
 
-        # 3. New Password (FIXED: checks length > 0)
+        # Handle Password Change
         new_pw = request.form.get('new_password', '').strip()
         if new_pw:
             if len(new_pw) < 8:
@@ -222,20 +221,19 @@ def account():
 @login_required
 def delete_account():
     user_todos = Todo.query.filter_by(user_id=current_user.id).all()
-    affected_categories = set()
+    affected_cats = set()
     for t in user_todos:
         for cat in t.categories:
-            affected_categories.add(cat)
+            affected_cats.add(cat)
 
     db.session.delete(current_user)
-    db.session.commit() 
+    db.session.commit()
 
-    for cat in affected_categories:
+    for cat in affected_cats:
         c = db.session.get(Category, cat.id)
         if c and not c.todos:
             db.session.delete(c)
     db.session.commit()
-    flash('Your account has been deleted.', 'warning')
     return redirect(url_for('landing'))
 
 @app.route('/todo', methods=['GET','POST'])
@@ -245,7 +243,6 @@ def todo():
         task = request.form['task'].strip()
         cat_input = request.form['category'].replace('\n', ',').strip()
         cat_names = [name.strip() for name in cat_input.split(',') if name.strip()]
-        
         if task:
             new_task = Todo(task=task, user_id=current_user.id)
             for name in cat_names:
@@ -254,21 +251,17 @@ def todo():
                     new_task.categories.append(category)
             db.session.add(new_task)
             db.session.commit()
-        else:
-            flash('Task cannot be empty.', 'danger')
             
     selected_category_input = request.args.get('category', '').strip()
     filter_prefixes = [name.strip() for name in selected_category_input.split(',') if name.strip()]
     
     q = Todo.query.filter_by(user_id=current_user.id).options(joinedload(Todo.categories))
-    
     if filter_prefixes:
         conditions = [Category.name.ilike(f"{prefix}%") for prefix in filter_prefixes]
         matching_cat_ids = db.session.query(Category.id).filter(or_(*conditions)).subquery()
         q = q.join(Todo.categories).filter(Category.id.in_(matching_cat_ids))
 
     tasks = q.distinct().order_by(Todo.completed.asc(), Todo.id.desc()).all()
-    
     user_cat_ids = db.session.query(Category.id).join(Todo.categories).filter(Todo.user_id == current_user.id).distinct()
     categories = Category.query.filter(Category.id.in_(user_cat_ids)).order_by(Category.name).all()
 
@@ -297,7 +290,7 @@ def delete(todo_id):
 
 @app.route('/health')
 def health_check():
-    return "I am alive!", 200
+    return "OK", 200
 
 if __name__ == '__main__':
     app.run()
