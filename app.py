@@ -290,8 +290,10 @@ def delete(todo_id):
     return redirect(url_for('todo', category=request.args.get('category', '')))
 
 @app.route('/health')
+@limiter.exempt
 def health_check():
     return "OK", 200
 
 if __name__ == '__main__':
-    app.run()
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=port)
