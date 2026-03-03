@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% block title %}ToPlanBlock - Account Settings{% endblock %}
+
+{% block content %}
+<div class="container">
+  <div class="row">
+    <!-- Header Section -->
+    <div class="col-12 mb-4">
+      <h2 class="fw-bold">Account Settings</h2>
+      <p class="text-muted">Manage your profile information and security preferences.</p>
+    </div>
+
+    <!-- Left Column: Profile & Info -->
+    <div class="col-lg-7">
+      <form method="POST" enctype="multipart/form-data">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+        
+        <!-- Profile Card -->
+        <div class="card border-0 shadow-sm mb-4">
+          <div class="card-header bg-white py-3">
+            <h5 class="card-title mb-0">General Information</h5>
+          </div>
+          <div class="card-body p-4">
+            <div class="row align-items-center mb-4">
+              <div class="col-auto">
+                {% if current_user.image_data %}
+                <img src="data:image/jpeg;base64,{{ current_user.image_data }}" 
+                     alt="Profile Picture" 
+                     class="rounded-circle shadow-sm border"
+                     style="width: 100px; height: 100px; object-fit: cover;">
+                {% else %}
+                <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center text-white shadow-sm" 
+                     style="width: 100px; height: 100px; font-size: 2rem;">
+                  {{ current_user.username[0] | upper }}
+                </div>
+                {% endif %}
+              </div>
+              <div class="col">
+                <label class="form-label fw-semibold">Update Profile Picture</label>
+                <input class="form-control form-control-sm" type="file" name="picture" accept="image/*">
+                <div class="form-text">JPG, PNG or GIF. Max 2MB.</div>
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Username</label>
+              <input class="form-control" type="text" name="username" value="{{ current_user.username }}" required>
+            </div>
+            
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Email Address</label>
+              <input class="form-control" type="email" name="email" value="{{ current_user.email }}" required>
+            </div>
+          </div>
+        </div>
+
+        <!-- Security Card -->
+        <div class="card border-0 shadow-sm mb-4">
+          <div class="card-header bg-white py-3">
+            <h5 class="card-title mb-0">Security</h5>
+          </div>
+          <div class="card-body p-4">
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Current Password</label>
+              <input class="form-control" type="password" name="old_password" placeholder="Required for any changes">
+              <div class="form-text text-primary italic">Confirm your current password to save changes.</div>
+            </div>
+            
+            <hr class="my-4">
+            
+            <div class="mb-3">
+              <label class="form-label fw-semibold">New Password (Optional)</label>
+              <input class="form-control" type="password" name="new_password" minlength="8"
+                placeholder="Leave blank to keep current">
+              <div class="form-text">Must be at least 8 characters long.</div>
+            </div>
+          </div>
+          <div class="card-footer bg-light p-3 d-flex justify-content-end">
+            <button class="btn btn-primary px-4">Save All Changes</button>
+          </div>
+        </div>
+      </form>
+    </div>
+
+    <!-- Right Column: Stats & Danger Zone -->
+    <div class="col-lg-5">
+      <!-- Quick Stats Card -->
+      <div class="card border-0 shadow-sm mb-4 text-center p-4 bg-primary text-white">
+        <div class="card-body">
+          <h6 class="text-uppercase small fw-bold opacity-75">Member Since</h6>
+          <p class="h5 mb-0">
+            {% if current_user.created_at %}
+              {{ current_user.created_at.strftime('%B %Y') }}
+            {% else %}
+              March 2026
+            {% endif %}
+          </p>
+        </div>
+      </div>
+
+      <!-- Danger Zone -->
+      <div class="card border-danger shadow-sm mb-4">
+        <div class="card-header bg-danger text-white py-3">
+          <h5 class="card-title mb-0">Danger Zone</h5>
+        </div>
+        <div class="card-body p-4">
+          <p class="small text-muted">Once you delete your account, there is no going back. All your tasks and categories will be permanently removed.</p>
+          <form method="POST" action="{{ url_for('delete_account') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+            <button class="btn btn-outline-danger w-100" onclick="return confirm('WARNING: Are you sure you want to delete your account? This action is permanent.')">
+              Delete My Account
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
