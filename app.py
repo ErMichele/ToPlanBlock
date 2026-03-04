@@ -243,7 +243,7 @@ def todo():
     if request.method == 'POST':
         task = request.form['task'].strip()
         cat_input = request.form['category'].replace('\n', ',').strip()
-        cat_names = [name.strip() for name in cat_input.split(',') if name.strip()]
+        cat_names = [name.strip().upper() for name in cat_input.split(',') if name.strip()]
         if task:
             new_task = Todo(task=task, user_id=current_user.id)
             for name in cat_names:
