@@ -131,6 +131,9 @@ def terms():
 @app.route('/register', methods=['GET','POST'])
 @limiter.limit("10 per hour")
 def register():
+    if current_user.is_authenticated:
+        return redirect(url_for('todo'))
+    
     if request.method == 'POST':
         username = request.form['username'].strip()
         email = request.form['email'].strip().lower()
@@ -157,6 +160,9 @@ def register():
 @app.route('/login', methods=['GET','POST'])
 @limiter.limit("5 per minute")
 def login():
+    if current_user.is_authenticated:
+        return redirect(url_for('todo'))
+    
     if request.method == 'POST':
         email = request.form['email'].strip().lower()
         pw = request.form['password']
