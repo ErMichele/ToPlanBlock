@@ -1,3 +1,10 @@
+import os
+import uuid
+import io
+import cloudinary
+import cloudinary.uploader
+from datetime import datetime
+from dotenv import load_dotenv
 from flask import Flask, render_template, redirect, url_for, request, flash
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
@@ -9,13 +16,9 @@ from flask_limiter.util import get_remote_address
 from sqlalchemy.orm import joinedload
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import or_
-from PIL import Image
-from datetime import datetime
-from dotenv import load_dotenv
-import os, base64, io
 
-app = Flask(__name__)
 load_dotenv()
+app = Flask(__name__)
 
 # --- CONFIGURATION ---
 app.config['SECRET_KEY'] = os.getenv("SECRET_KEY", "secure-fallback-key-for-local-dev")
@@ -26,7 +29,14 @@ else:
 
 app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['MAX_CONTENT_LENGTH'] = 0.5 * 1024 * 1024  # 500KB limit
+app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024  # Aumentato a 5MB per Cloudinary
+
+cloudinary.config(
+    cloud_name = os.getenv('CLOUDINARY_CLOUD_NAME'),
+    api_key = os.getenv('CLOUDINARY_API_KEY'),
+    api_secret = os.getenv('CLOUDINARY_API_SECRET'),
+    secure = True
+)
 
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
     'pool_size': 5,
@@ -52,7 +62,7 @@ limiter = Limiter(
     storage_uri="memory://"
 )
 
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg'}
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp'}
 
 # ---------------- Models ----------------
 class User(db.Model, UserMixin):
@@ -60,7 +70,7 @@ class User(db.Model, UserMixin):
     username = db.Column(db.String(150), unique=True, nullable=False)
     email = db.Column(db.String(150), unique=True, nullable=False)
     password = db.Column(db.String(200), nullable=False)
-    image_data = db.Column(db.Text, nullable=True) 
+    profile_pic_url = db.Column(db.String(500), nullable=True) 
     created_at = db.Column(db.DateTime, default=datetime.now)
     todos = db.relationship('Todo', backref='owner', lazy=True, cascade='all, delete-orphan')
 
@@ -90,19 +100,19 @@ def load_user(user_id):
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-def compress_image(file_storage):
+def delete_old_cloudinary_image(url):
+    """Estrae il public_id dall'URL e cancella l'immagine da Cloudinary per liberare spazio."""
+    if not url:
+        return
     try:
-        img = Image.open(file_storage)
-        if img.mode in ("RGBA", "P"):
-            img = img.convert("RGB")
-        img.thumbnail((150, 150))
-        output = io.BytesIO()
-        img.save(output, format='JPEG', quality=60)
-        output.seek(0)
-        return output.read()
+        parts = url.split('/')
+        if 'upload' in parts:
+            idx = parts.index('upload')
+            public_id_with_ext = "/".join(parts[idx+2:]) 
+            public_id = public_id_with_ext.rsplit('.', 1)[0]
+            cloudinary.uploader.destroy(public_id, invalidate=True)
     except Exception as e:
-        print(f"Error compressing image: {e}")
-        return None
+        print(f"Error with the removal of the old image: {e}")
 
 # ---------------- Error Handlers ----------------
 @app.errorhandler(404)
@@ -185,7 +195,7 @@ def logout():
 @login_required
 def account():
     if request.method == 'POST':
-        # Security: Requires current password for any changes
+        # Security check
         current_pw = request.form.get('current_password') or request.form.get('old_password')
         if not current_pw or not bcrypt.check_password_hash(current_user.password, current_pw):
             flash('Incorrect current password.', 'danger')
@@ -198,13 +208,27 @@ def account():
             current_user.username = new_username
             current_user.email = new_email
 
-        # Handle Picture
         if 'picture' in request.files:
             file = request.files['picture']
-            if file and allowed_file(file.filename):
-                comp_data = compress_image(file)
-                if comp_data:
-                    current_user.image_data = base64.b64encode(comp_data).decode('ascii')
+            if file and file.filename != '' and allowed_file(file.filename):
+                try:
+                    old_url = current_user.profile_pic_url
+
+                    upload_result = cloudinary.uploader.upload(
+                        file,
+                        folder = "profile_pics/",
+                        public_id = f"user_{current_user.id}_{uuid.uuid4().hex[:5]}",
+                        transformation = [
+                            {'width': 400, 'height': 400, 'crop': 'fill', 'gravity': 'face', 'quality': 'auto'}
+                        ]
+                    )
+                    current_user.profile_pic_url = upload_result.get('secure_url')
+
+                    if old_url:
+                        delete_old_cloudinary_image(old_url)
+
+                except Exception as e:
+                    flash(f"Error uploading image: {str(e)}", 'danger')
 
         # Handle Password Change
         new_pw = request.form.get('new_password', '').strip()
@@ -227,6 +251,9 @@ def account():
 @app.post('/account/delete')
 @login_required
 def delete_account():
+    if current_user.profile_pic_url:
+        delete_old_cloudinary_image(current_user.profile_pic_url)
+
     user_todos = Todo.query.filter_by(user_id=current_user.id).all()
     affected_cats = set()
     for t in user_todos:
