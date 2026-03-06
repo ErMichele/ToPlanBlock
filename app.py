@@ -105,14 +105,12 @@ def delete_old_cloudinary_image(url):
     if not url:
         return
     try:
-        # L'URL è tipicamente: https://res.cloudinary.com/cloudname/image/upload/v123/folder/public_id.jpg
-        # Estraiamo 'folder/public_id'
         parts = url.split('/')
         if 'upload' in parts:
             idx = parts.index('upload')
             public_id_with_ext = "/".join(parts[idx+2:]) 
             public_id = public_id_with_ext.rsplit('.', 1)[0]
-            cloudinary.uploader.destroy(public_id)
+            cloudinary.uploader.destroy(public_id, invalidate=True)
     except Exception as e:
         print(f"Error with the removal of the old image: {e}")
 
@@ -214,8 +212,7 @@ def account():
             file = request.files['picture']
             if file and file.filename != '' and allowed_file(file.filename):
                 try:
-                    if current_user.profile_pic_url:
-                        delete_old_cloudinary_image(current_user.profile_pic_url)
+                    old_url = current_user.profile_pic_url
 
                     upload_result = cloudinary.uploader.upload(
                         file,
@@ -226,6 +223,10 @@ def account():
                         ]
                     )
                     current_user.profile_pic_url = upload_result.get('secure_url')
+
+                    if old_url:
+                        delete_old_cloudinary_image(old_url)
+
                 except Exception as e:
                     flash(f"Error uploading image: {str(e)}", 'danger')
 
