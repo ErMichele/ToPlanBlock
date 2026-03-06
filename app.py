@@ -251,6 +251,9 @@ def account():
 @app.post('/account/delete')
 @login_required
 def delete_account():
+    if current_user.profile_pic_url:
+        delete_old_cloudinary_image(current_user.profile_pic_url)
+
     user_todos = Todo.query.filter_by(user_id=current_user.id).all()
     affected_cats = set()
     for t in user_todos:
