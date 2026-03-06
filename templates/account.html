@@ -23,8 +23,8 @@
           <div class="card-body p-4">
             <div class="row align-items-center mb-4">
               <div class="col-auto">
-                {% if current_user.image_data %}
-                <img src="data:image/jpeg;base64,{{ current_user.image_data }}" 
+                {% if current_user.profile_pic_url %}
+                <img src="{{ current_user.profile_pic_url }}" 
                      alt="Profile Picture" 
                      class="rounded-circle shadow-sm border"
                      style="width: 100px; height: 100px; object-fit: cover;">
@@ -38,7 +38,7 @@
               <div class="col">
                 <label class="form-label fw-semibold">Update Profile Picture</label>
                 <input class="form-control form-control-sm" type="file" name="picture" accept="image/*">
-                <div class="form-text">JPG, PNG or GIF. Max 2MB.</div>
+                <div class="form-text">JPG, PNG or WEBP. Managed by Cloudinary.</div>
               </div>
             </div>
 
@@ -62,7 +62,7 @@
           <div class="card-body p-4">
             <div class="mb-3">
               <label class="form-label fw-semibold">Current Password</label>
-              <input class="form-control" type="password" name="old_password" placeholder="Required for any changes">
+              <input class="form-control" type="password" name="old_password" placeholder="Required for any changes" required>
               <div class="form-text text-primary italic">Confirm your current password to save changes.</div>
             </div>
             
