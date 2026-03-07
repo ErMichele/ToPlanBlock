@@ -1,20 +1,24 @@
-title: | type: 
-
+---
+name: Bug Report
+about: Report a bug or issue in the current production release
+labels: bug
+---
 A clear and concise description of what the bug is.
 
-# To Reproduce
+### To Reproduce
+Steps to reproduce the behavior:
 - Go to '...'
-- Click on '....'
-- Error happens
+- Click on '...'
+- The error occurs
 
-# Expected behavior
-What you expected to happen.
+### Expected Behavior
+Describe what you expected to happen.
 
-# Screenshots
+### Screenshots
 If applicable, add screenshots to help explain your problem.
 
-# Additional context
+### Additional Context
 Add any other context about the problem here.
 
-# Reference
-Link to any other space (branch/release/issue)
+### Reference
+Link to any related resources (branch, release, issue, etc.).

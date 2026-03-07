@@ -1,15 +1,19 @@
-title: | type: 
+---
+name: Suggesting a Feature
+about: Suggest a feature or improvement for the project
+labels: enhancement
+---
+A clear and concise description of the feature or addition.
 
-A clear and concise description of what the attidion would be.
+### Why do you believe implementing this would be beneficial (enhancement/problem)?
+Provide a clear and concise explanation of your reasoning.  
+Example: *I'm always frustrated when [...]*
 
-# Why do you belive the implementation of it is positive (enanchment/probkem)?
-A clear and concise description of your reasoning. Ex. I'm always frustrated when [...]
+### Describe the solution you'd like
+Provide a clear and concise description of what you would like to happen.
 
-# Describe the solution you'd like
-A clear and concise description of what you want to happen.
+### Describe alternatives you've considered
+Provide a clear and concise description of any alternative solutions or features you have considered.
 
-# Describe alternatives you've considered
-A clear and concise description of any alternative solutions or features you've considered on the side.
-
-# Additional context
-Add any other context or screenshots about the feature request here.
+### Additional context
+Add any other context, details, or screenshots about the feature request here.
