@@ -114,6 +114,21 @@ def delete_old_cloudinary_image(url):
     except Exception as e:
         print(f"Error with the removal of the old image: {e}")
 
+def toggle_category_string(current_str, toggle_name):
+    """Helper to add/remove a category name from a comma-separated string."""
+    if not current_str:
+        return toggle_name
+    
+    parts = [p.strip().upper() for p in current_str.split(',') if p.strip()]
+    toggle_name = toggle_name.strip().upper()
+    
+    if toggle_name in parts:
+        parts.remove(toggle_name)
+    else:
+        parts.append(toggle_name)
+    
+    return ",".join(parts)
+
 # ---------------- Error Handlers ----------------
 @app.errorhandler(404)
 def not_found_error(error):
@@ -270,36 +285,56 @@ def delete_account():
     db.session.commit()
     return redirect(url_for('landing'))
 
-@app.route('/todo', methods=['GET','POST'])
+@app.route('/todo', methods=['GET', 'POST'])
 @login_required
 def todo():
     if request.method == 'POST':
-        task = request.form['task'].strip()
-        cat_input = request.form['category'].replace('\n', ',').strip()
-        cat_names = [name.strip().upper() for name in cat_input.split(',') if name.strip()]
-        if task:
-            new_task = Todo(task=task, user_id=current_user.id)
-            for name in cat_names:
-                category = Category.query.filter_by(name=name).first() or Category(name=name)
-                if category not in new_task.categories:
-                    new_task.categories.append(category)
-            db.session.add(new_task)
-            db.session.commit()
+        task_text = request.form.get('task', '').strip()
+        # IMPORTANT: Use getlist for multiple select fields
+        cat_list = request.form.getlist('category')
+        
+        if task_text:
+            new_todo = Todo(task=task_text, user_id=current_user.id)
             
-    selected_category_input = request.args.get('category', '').strip()
-    filter_prefixes = [name.strip() for name in selected_category_input.split(',') if name.strip()]
+            # Process each category sent by the multi-select
+            for name in cat_list:
+                clean_name = name.strip().upper()
+                if not clean_name:
+                    continue
+                    
+                cat = Category.query.filter_by(name=clean_name).first()
+                if not cat:
+                    cat = Category(name=clean_name)
+                    db.session.add(cat)
+                
+                if cat not in new_todo.categories:
+                    new_todo.categories.append(cat)
+            
+            db.session.add(new_todo)
+            db.session.commit()
+            flash('Task added!', 'success')
+            return redirect(url_for('todo', category=request.args.get('category', '')))
+
+    selected_category_input = request.args.get('category', '')
     
-    q = Todo.query.filter_by(user_id=current_user.id).options(joinedload(Todo.categories))
-    if filter_prefixes:
-        conditions = [Category.name.ilike(f"{prefix}%") for prefix in filter_prefixes]
+    q = Todo.query.options(joinedload(Todo.categories)).filter_by(user_id=current_user.id)
+    if selected_category_input:
+        cat_filter_list = [c.strip().upper() for c in selected_category_input.split(',') if c.strip()]
+        conditions = [Category.name == c for c in cat_filter_list]
         matching_cat_ids = db.session.query(Category.id).filter(or_(*conditions)).subquery()
         q = q.join(Todo.categories).filter(Category.id.in_(matching_cat_ids))
 
     tasks = q.distinct().order_by(Todo.completed.asc(), Todo.id.desc()).all()
+    
+    # Get only categories that belong to the current user's tasks
     user_cat_ids = db.session.query(Category.id).join(Todo.categories).filter(Todo.user_id == current_user.id).distinct()
     categories = Category.query.filter(Category.id.in_(user_cat_ids)).order_by(Category.name).all()
 
-    return render_template('todo.html', tasks=tasks, categories=categories, selected_category=selected_category_input)
+    return render_template('todo.html', 
+                         tasks=tasks, 
+                         categories=categories, 
+                         selected_category=selected_category_input, 
+                         toggle_cat=toggle_category_string)
 
 @app.post('/todo/<int:todo_id>/toggle')
 @login_required

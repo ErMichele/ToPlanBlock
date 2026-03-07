@@ -1,72 +1,111 @@
 {% extends "base.html" %}
 {% block title %}ToPlanBlock - My ToDo{% endblock %}
 {% block content %}
+
+<!-- Load Choices.js CSS -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css" />
+
+<style>
+  /* Customizing Choices.js to match Bootstrap 5 */
+  .choices__inner {
+    background-color: #fff;
+    border-radius: 0.375rem;
+    border: 1px solid #dee2e6;
+    padding: 4px 8px !important;
+    min-height: 38px;
+  }
+  .choices__input {
+    background-color: transparent !important;
+    font-size: 0.9rem;
+  }
+  .choices__list--multiple .choices__item {
+    background-color: #0d6efd;
+    border: 1px solid #0d6efd;
+    border-radius: 4px;
+    font-weight: 500;
+  }
+  .choices[data-type*="select-one"] .choices__inner, 
+  .choices[data-type*="select-multiple"] .choices__inner {
+    padding-bottom: 2px;
+  }
+</style>
+
 <div class="row">
   <div class="col-lg-4">
-    <h4>Add task</h4>
-    <form method="POST" class="mb-4">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-      <div class="mb-2">
-        <label class="form-label">Task</label>
-        <input class="form-control" type="text" name="task" placeholder="New task..." required>
-      </div>
-      <div class="mb-2">
-        <label class="form-label">Category (comma separated)</label>
-        <textarea class="form-control" name="category" placeholder="e.g., Work, Home, Study"></textarea>
-      </div>
-      <button class="btn btn-success">Add</button>
-    </form>
+    <div class="card shadow-sm border-0 mb-4">
+      <div class="card-body">
+        <h4 class="card-title mb-4">Add Task</h4>
+        <form method="POST">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+          
+          <div class="mb-3">
+            <label class="form-label fw-bold">Task Name</label>
+            <input class="form-control" type="text" name="task" placeholder="What needs to be done?" required>
+          </div>
 
-    <h5 class="mt-4">Existing categories</h5>
-    <div class="d-flex flex-wrap gap-2 mb-4">
+          <div class="mb-3">
+            <label class="form-label fw-bold">Categories</label>
+            <select class="form-control" name="category" id="category-tags" multiple>
+              {% for c in categories %}
+              <option value="{{ c.name }}">{{ c.name }}</option>
+              {% endfor %}
+            </select>
+            <div class="form-text mt-2">Select existing or type and press <b>Enter</b> for new ones.</div>
+          </div>
+
+          <button class="btn btn-primary w-100 py-2">Create Task</button>
+        </form>
+      </div>
+    </div>
+
+    <h5 class="mt-4">Filter by Category</h5>
+    <div class="d-flex flex-wrap gap-2 mb-2">
       {% for c in categories %}
-      <a href="{{ url_for('todo', category=c.name) }}"
-        class="badge text-decoration-none {% if c.name in selected_category %}bg-primary{% else %}bg-secondary{% endif %}">
+      {% set new_filter = toggle_cat(selected_category, c.name) %}
+      <a href="{{ url_for('todo', category=new_filter) }}"
+        class="badge text-decoration-none p-2 {{ 'bg-primary' if c.name in selected_category.upper() else 'bg-secondary' }}">
         {{ c.name }}
+        {% if c.name in selected_category.upper() %}
+        <span class="ms-1">&times;</span>
+        {% endif %}
       </a>
       {% else %}
       <small class="text-muted">No categories created yet.</small>
       {% endfor %}
     </div>
-
-    <hr>
-
-    <h5>Filter tasks</h5>
-    <form method="GET" action="{{ url_for('todo') }}" class="mb-3">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-      <div class="input-group">
-        <input type="text" class="form-control" name="category" placeholder="Filter by categories (e.g. Work, Home)"
-          value="{{ selected_category }}">
-        <button class="btn btn-outline-primary" type="submit">Filter</button>
-      </div>
-      <a href="{{ url_for('todo') }}"
-        class="btn btn-outline-secondary btn-sm mt-2 {% if not selected_category %}active{% endif %}">Clear Filter</a>
-    </form>
-
+    {% if selected_category %}
+    <a href="{{ url_for('todo') }}" class="text-danger small text-decoration-none">Clear all filters</a>
+    {% endif %}
   </div>
 
-  <div class="col-lg-8 mt-4 mt-lg-0">
-    {% if selected_category %}
-    <h4 class="mb-3">Tasks (Filtered by: <em>{{ selected_category }}</em>)</h4>
-    {% else %}
-    <h4>Your tasks</h4>
-    {% endif %}
-    <ul class="list-group">
+  <div class="col-lg-8">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      {% if selected_category %}
+      <h4>Filtered: <span class="text-primary">{{ selected_category }}</span></h4>
+      <a href="{{ url_for('todo') }}" class="btn btn-sm btn-outline-secondary">Clear Filter</a>
+      {% else %}
+      <h4>Your Tasks</h4>
+      {% endif %}
+    </div>
+
+    <ul class="list-group shadow-sm">
       {% for t in tasks %}
-      <li class="list-group-item d-flex justify-content-between align-items-center">
-        <div class="d-flex align-items-center gap-3">
-          {% for cat in t.categories %}
-          <span class="badge bg-info">{{ cat.name }}</span>
-          {% endfor %}
-          <span class="{% if t.completed %}text-decoration-line-through text-muted{% endif %}">
+      <li class="list-group-item d-flex justify-content-between align-items-center py-3">
+        <div class="d-flex flex-column">
+          <div class="d-flex gap-1 mb-1">
+            {% for cat in t.categories %}
+            <span class="badge bg-light text-dark border" style="font-size: 0.65rem;">{{ cat.name }}</span>
+            {% endfor %}
+          </div>
+          <span class="{% if t.completed %}text-decoration-line-through text-muted{% endif %} fw-medium">
             {{ t.task }}
           </span>
         </div>
         <div class="d-flex gap-2">
           <form method="POST" action="{{ url_for('toggle', todo_id=t.id, category=selected_category) }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-            <button class="btn btn-outline-primary btn-sm" title="Toggle complete">
-              {% if t.completed %}Mark undone{% else %}Mark done{% endif %}
+            <button class="btn btn-sm {{ 'btn-success' if t.completed else 'btn-outline-primary' }}">
+              {% if t.completed %}Completed{% else %}Mark Done{% endif %}
             </button>
           </form>
           <form method="POST" action="{{ url_for('delete', todo_id=t.id, category=selected_category) }}">
@@ -76,9 +115,29 @@
         </div>
       </li>
       {% else %}
-      <li class="list-group-item">No tasks yet{% if not selected_category %}. Add one above!{% endif %}.</li>
+      <li class="list-group-item text-center text-muted py-5 bg-white border-0">
+        <p class="mb-0">No tasks found. Try adding one or clearing filters.</p>
+      </li>
       {% endfor %}
     </ul>
   </div>
 </div>
+
+<!-- Choices.js Script -->
+<script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    const element = document.getElementById('category-tags');
+    const choices = new Choices(element, {
+      removeItemButton: true,
+      addItems: true,
+      addItemText: (value) => `Press Enter to add <b>"${value}"</b>`,
+      duplicateItemsAllowed: false,
+      placeholderValue: 'Add tags...',
+      searchPlaceholderValue: 'Search or add category',
+    });
+  });
+</script>
+
 {% endblock %}
