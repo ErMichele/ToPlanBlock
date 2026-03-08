@@ -290,13 +290,12 @@ def delete_account():
 def todo():
     if request.method == 'POST':
         task_text = request.form.get('task', '').strip()
-        # IMPORTANT: Use getlist for multiple select fields
-        cat_list = request.form.getlist('category')
+        raw_categories = request.form.get('categories_csv', '')
+        cat_list = [c.strip() for c in raw_categories.split(',') if c.strip()]
+
         
         if task_text:
             new_todo = Todo(task=task_text, user_id=current_user.id)
-            
-            # Process each category sent by the multi-select
             for name in cat_list:
                 clean_name = name.strip().upper()
                 if not clean_name:
@@ -326,7 +325,6 @@ def todo():
 
     tasks = q.distinct().order_by(Todo.completed.asc(), Todo.id.desc()).all()
     
-    # Get only categories that belong to the current user's tasks
     user_cat_ids = db.session.query(Category.id).join(Todo.categories).filter(Todo.user_id == current_user.id).distinct()
     categories = Category.query.filter(Category.id.in_(user_cat_ids)).order_by(Category.name).all()
 
