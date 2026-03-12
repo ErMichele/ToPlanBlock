@@ -5,7 +5,7 @@ import cloudinary
 import cloudinary.uploader
 from datetime import datetime
 from dotenv import load_dotenv
-from flask import Flask, render_template, redirect, url_for, request, flash
+from flask import Flask, render_template, redirect, url_for, request, flash, session
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from flask_bcrypt import Bcrypt
@@ -58,7 +58,7 @@ login_manager.login_message_category = 'warning'
 limiter = Limiter(
     get_remote_address,
     app=app,
-    default_limits=["200 per day", "50 per hour", "10 per minute"],
+    default_limits=["500 per day", "100 per hour", "60 per minute"],
     storage_uri="memory://"
 )
 
@@ -263,6 +263,14 @@ def account():
 
     return render_template('account.html')
 
+@app.post('/update_preferences')
+@login_required
+def update_preferences():
+    session['auto_delete'] = 'auto_delete' in request.form
+    session['confirm_delete'] = 'confirm_delete' in request.form
+    flash('Preferences updated (Session saved).', 'success')
+    return redirect(url_for('account'))
+
 @app.post('/account/delete')
 @login_required
 def delete_account():
@@ -339,7 +347,19 @@ def todo():
 def toggle(todo_id):
     t = Todo.query.filter_by(id=todo_id, user_id=current_user.id).first_or_404()
     t.completed = not t.completed
-    db.session.commit()
+    
+    if session.get('auto_delete') and t.completed:
+        cats = list(t.categories)
+        db.session.delete(t)
+        db.session.commit()
+        for cat in cats:
+            if not cat.todos:
+                db.session.delete(cat)
+        db.session.commit()
+        flash('Task completed and auto-deleted.', 'info')
+    else:
+        db.session.commit()
+        
     return redirect(url_for('todo', category=request.args.get('category', '')))
 
 @app.post('/todo/<int:todo_id>/delete')
