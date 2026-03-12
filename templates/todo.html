@@ -1,84 +1,255 @@
 {% extends "base.html" %}
 {% block title %}ToPlanBlock - My ToDo{% endblock %}
 {% block content %}
-<div class="row">
-  <div class="col-lg-4">
-    <h4>Add task</h4>
-    <form method="POST" class="mb-4">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-      <div class="mb-2">
-        <label class="form-label">Task</label>
-        <input class="form-control" type="text" name="task" placeholder="New task..." required>
-      </div>
-      <div class="mb-2">
-        <label class="form-label">Category (comma separated)</label>
-        <textarea class="form-control" name="category" placeholder="e.g., Work, Home, Study"></textarea>
-      </div>
-      <button class="btn btn-success">Add</button>
-    </form>
 
-    <h5 class="mt-4">Existing categories</h5>
-    <div class="d-flex flex-wrap gap-2 mb-4">
-      {% for c in categories %}
-      <a href="{{ url_for('todo', category=c.name) }}"
-        class="badge text-decoration-none {% if c.name in selected_category %}bg-primary{% else %}bg-secondary{% endif %}">
-        {{ c.name }}
-      </a>
-      {% else %}
-      <small class="text-muted">No categories created yet.</small>
-      {% endfor %}
+<style>
+  /* Custom Tag Input Styling - Replaces Choices.js */
+  .tag-input-container {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    padding: 0.375rem 0.75rem;
+    border: 1px solid #dee2e6;
+    border-radius: 0.375rem;
+    background-color: #fff;
+    cursor: text;
+    min-height: 38px;
+    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+  }
+  .tag-input-container:focus-within {
+    border-color: #86b7fe;
+    outline: 0;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+  }
+  .tag-badge {
+    display: inline-flex;
+    align-items: center;
+    background-color: #0d6efd;
+    color: white;
+    padding: 2px 8px;
+    border-radius: 4px;
+    margin: 2px;
+    font-size: 0.85rem;
+    animation: fadeIn 0.2s ease-in;
+  }
+  @keyframes fadeIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
+  
+  .tag-badge .remove-tag {
+    margin-left: 6px;
+    cursor: pointer;
+    font-weight: bold;
+    opacity: 0.8;
+  }
+  .tag-badge .remove-tag:hover { opacity: 1; }
+  
+  #tag-input {
+    border: none;
+    outline: none;
+    flex: 1;
+    min-width: 120px;
+    padding: 4px 0;
+    font-size: 0.9rem;
+  }
+  .suggestions-list {
+    position: absolute;
+    z-index: 1050;
+    width: 100%;
+    max-height: 150px;
+    overflow-y: auto;
+    background: white;
+    border: 1px solid #dee2e6;
+    border-top: none;
+    display: none;
+  }
+  .suggestion-item {
+    padding: 8px 12px;
+    cursor: pointer;
+    font-size: 0.9rem;
+  }
+  .suggestion-item:hover { background-color: #f8f9fa; }
+</style>
+
+<div class="row">
+  <!-- Left Column: Add Task & Filters -->
+  <div class="col-lg-4">
+    <div class="card shadow-sm border-0 mb-4">
+      <div class="card-body">
+        <h4 class="card-title mb-4">Add Task</h4>
+        <form method="POST" id="todo-form">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+          
+          <!-- Task Name -->
+          <div class="mb-3">
+            <label class="form-label fw-bold">Task Name</label>
+            <input class="form-control" type="text" name="task" placeholder="What needs to be done?" required>
+          </div>
+
+          <!-- Category Tag Input -->
+          <div class="mb-3 position-relative">
+            <label class="form-label fw-bold">Categories</label>
+            <div class="tag-input-container" id="tag-container">
+              <input type="text" id="tag-input" placeholder="Add category..." autocomplete="off">
+            </div>
+            <!-- Hidden field that sends data to Python -->
+            <input type="hidden" name="categories_csv" id="categories-hidden">
+            
+            <!-- Autocomplete Suggestions -->
+            <div id="suggestions" class="suggestions-list shadow-sm rounded-bottom">
+              {% for c in categories %}
+              <div class="suggestion-item" data-value="{{ c.name }}">{{ c.name }}</div>
+              {% endfor %}
+            </div>
+            
+            <div class="form-text mt-2">Type and press <b>Enter</b> or <b>Comma</b> to add tags.</div>
+          </div>
+
+          <button type="submit" class="btn btn-primary w-100 py-2">Create Task</button>
+        </form>
+      </div>
     </div>
 
-    <hr>
-
-    <h5>Filter tasks</h5>
-    <form method="GET" action="{{ url_for('todo') }}" class="mb-3">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-      <div class="input-group">
-        <input type="text" class="form-control" name="category" placeholder="Filter by categories (e.g. Work, Home)"
-          value="{{ selected_category }}">
-        <button class="btn btn-outline-primary" type="submit">Filter</button>
-      </div>
-      <a href="{{ url_for('todo') }}"
-        class="btn btn-outline-secondary btn-sm mt-2 {% if not selected_category %}active{% endif %}">Clear Filter</a>
-    </form>
-
+    <!-- Category Filters -->
+    <h5 class="mt-4">Filter by Category</h5>
+    <div class="d-flex flex-wrap gap-2 mb-2">
+      {% for c in categories %}
+        {% set new_filter = toggle_cat(selected_category, c.name) %}
+        <a href="{{ url_for('todo', category=new_filter) }}"
+          class="badge text-decoration-none p-2 {{ 'bg-primary' if c.name in selected_category.upper() else 'bg-secondary' }}">
+          {{ c.name }}
+          {% if c.name in selected_category.upper() %} <span class="ms-1">&times;</span> {% endif %}
+        </a>
+      {% else %}
+        <small class="text-muted">No categories yet.</small>
+      {% endfor %}
+    </div>
+    {% if selected_category %}
+      <a href="{{ url_for('todo') }}" class="text-danger small text-decoration-none">Clear all filters</a>
+    {% endif %}
   </div>
 
-  <div class="col-lg-8 mt-4 mt-lg-0">
-    {% if selected_category %}
-    <h4 class="mb-3">Tasks (Filtered by: <em>{{ selected_category }}</em>)</h4>
-    {% else %}
-    <h4>Your tasks</h4>
-    {% endif %}
-    <ul class="list-group">
+  <div class="col-lg-8">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <h4>{% if selected_category %}Filtered: <span class="text-primary">{{ selected_category }}</span>{% else %}Your Tasks{% endif %}</h4>
+    </div>
+
+    <ul class="list-group shadow-sm">
       {% for t in tasks %}
-      <li class="list-group-item d-flex justify-content-between align-items-center">
-        <div class="d-flex align-items-center gap-3">
-          {% for cat in t.categories %}
-          <span class="badge bg-info">{{ cat.name }}</span>
-          {% endfor %}
-          <span class="{% if t.completed %}text-decoration-line-through text-muted{% endif %}">
+      <li class="list-group-item d-flex justify-content-between align-items-center py-3">
+        <div class="d-flex flex-column">
+          <div class="d-flex gap-1 mb-1">
+            {% for cat in t.categories %}
+              <span class="badge bg-light text-dark border" style="font-size: 0.65rem;">{{ cat.name }}</span>
+            {% endfor %}
+          </div>
+          <span class="{% if t.completed %}text-decoration-line-through text-muted{% endif %} fw-medium">
             {{ t.task }}
           </span>
         </div>
         <div class="d-flex gap-2">
           <form method="POST" action="{{ url_for('toggle', todo_id=t.id, category=selected_category) }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-            <button class="btn btn-outline-primary btn-sm" title="Toggle complete">
-              {% if t.completed %}Mark undone{% else %}Mark done{% endif %}
+            <button class="btn btn-sm {{ 'btn-success' if t.completed else 'btn-outline-primary' }}">
+              {% if t.completed %}Done{% else %}Mark Done{% endif %}
             </button>
           </form>
           <form method="POST" action="{{ url_for('delete', todo_id=t.id, category=selected_category) }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-            <button class="btn btn-outline-danger btn-sm" onclick="return confirm('Delete this task?');">Delete</button>
+            <button class="btn btn-outline-danger btn-sm" onclick="return confirm('Delete?');">Delete</button>
           </form>
         </div>
       </li>
       {% else %}
-      <li class="list-group-item">No tasks yet{% if not selected_category %}. Add one above!{% endif %}.</li>
+      <li class="list-group-item text-center text-muted py-5 bg-white border-0">
+        <p class="mb-0">No tasks found.</p>
+      </li>
       {% endfor %}
     </ul>
   </div>
 </div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    const tagContainer = document.getElementById('tag-container');
+    const tagInput = document.getElementById('tag-input');
+    const hiddenInput = document.getElementById('categories-hidden');
+    const suggestions = document.getElementById('suggestions');
+    
+    let tags = [];
+
+    function updateHiddenInput() {
+      hiddenInput.value = tags.join(',');
+    }
+
+    function addTag(label) {
+      label = label.trim().toUpperCase();
+      if (label && !tags.includes(label)) {
+        tags.push(label);
+        const tagEl = document.createElement('div');
+        tagEl.className = 'tag-badge';
+        tagEl.innerHTML = `<span>${label}</span><span class="remove-tag" data-item="${label}">&times;</span>`;
+        tagContainer.insertBefore(tagEl, tagInput);
+        updateHiddenInput();
+      }
+      tagInput.value = '';
+      suggestions.style.display = 'none';
+    }
+
+    function removeTag(label) {
+      tags = tags.filter(t => t !== label);
+      // Refresh UI
+      tagContainer.querySelectorAll('.tag-badge').forEach(b => b.remove());
+      tags.forEach(t => {
+        const el = document.createElement('div');
+        el.className = 'tag-badge';
+        el.innerHTML = `<span>${t}</span><span class="remove-tag" data-item="${t}">&times;</span>`;
+        tagContainer.insertBefore(el, tagInput);
+      });
+      updateHiddenInput();
+    }
+
+    tagInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ',') {
+        e.preventDefault();
+        addTag(tagInput.value);
+      } else if (e.key === 'Backspace' && tagInput.value === '' && tags.length > 0) {
+        removeTag(tags[tags.length - 1]);
+      }
+    });
+
+    tagContainer.addEventListener('click', (e) => {
+      if (e.target.classList.contains('remove-tag')) {
+        removeTag(e.target.dataset.item);
+      } else {
+        tagInput.focus();
+      }
+    });
+
+    // Handle suggestions visibility
+    tagInput.addEventListener('input', () => {
+      const val = tagInput.value.toUpperCase();
+      const items = suggestions.querySelectorAll('.suggestion-item');
+      let count = 0;
+      items.forEach(item => {
+        if (val && item.dataset.value.includes(val) && !tags.includes(item.dataset.value)) {
+          item.style.display = 'block';
+          count++;
+        } else {
+          item.style.display = 'none';
+        }
+      });
+      suggestions.style.display = count > 0 ? 'block' : 'none';
+    });
+
+    suggestions.addEventListener('click', (e) => {
+      if (e.target.classList.contains('suggestion-item')) {
+        addTag(e.target.dataset.value);
+      }
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!tagContainer.contains(e.target)) suggestions.style.display = 'none';
+    });
+  });
+</script>
+
 {% endblock %}
