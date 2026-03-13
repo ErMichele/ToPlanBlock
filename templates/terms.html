@@ -1,19 +1,35 @@
 {% extends "base.html" %}
-{% block title %}Terms of Service{% endblock %}
+{% block title %}Terms of Service - ToPlanBlock{% endblock %}
 {% block content %}
 <div class="container py-5">
-    <h1>Terms and Conditions</h1>
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <h1 class="fw-bold mb-4">Terms and Conditions</h1>
 
-    <h3>1. Service Usage</h3>
-    <p>ToPlanBlock is an educational/demonstrative project provided "AS IS", without guarantees of continuous operation.
-    </p>
+            <section class="mb-4">
+                <h4 class="fw-bold">1. Nature of the Service</h4>
+                <p>ToPlanBlock is an educational and demonstrative project. It is provided on an <strong>"AS IS"</strong> and <strong>"AS AVAILABLE"</strong> basis. We do not guarantee 100% uptime or the permanent preservation of data.</p>
+            </section>
 
-    <h3>2. Liability</h3>
-    <p>The author assumes no responsibility for any loss of data (tasks, accounts) due to maintenance or service
-        closure.</p>
+            <section class="mb-4">
+                <h4 class="fw-bold">2. User Responsibility</h4>
+                <p>You are responsible for maintaining the confidentiality of your account credentials. The author assumes no liability for data loss resulting from maintenance, server failure, or service closure.</p>
+            </section>
 
-    <h3>3. Behavior</h3>
-    <p>It is forbidden to upload offensive or illegal images as profile pictures. We reserve the right to delete
-        accounts that violate this rule.</p>
+            <section class="mb-4">
+                <h4 class="fw-bold">3. Profile Content & Automated Processing</h4>
+                <p>Users are prohibited from uploading images that are offensive, illegal, or violate third-party copyrights. By uploading a profile picture, you agree to the following:</p>
+                <ul>
+                    <li><strong>Automated Processing:</strong> Images may be automatically resized, cropped, or reformatted for display and optimization purposes.</li>
+                    <li><strong>Moderation:</strong> We reserve the right to remove any image or account that violates these standards without prior notice.</li>
+                </ul>
+            </section>
+
+            <section class="mb-4">
+                <h4 class="fw-bold">4. Changes to Terms</h4>
+                <p>We reserve the right to modify these terms at any time. Continued use of the application following changes constitutes acceptance of the new terms.</p>
+            </section>
+        </div>
+    </div>
 </div>
 {% endblock %}

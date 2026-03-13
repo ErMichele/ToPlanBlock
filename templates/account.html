@@ -13,8 +13,8 @@
     <!-- Left Column: Profile & Info -->
     <div class="col-lg-7">
       <form method="POST" enctype="multipart/form-data">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-        
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+
         <!-- Profile Card -->
         <div class="card border-0 shadow-sm mb-4">
           <div class="card-header bg-white py-3">
@@ -23,17 +23,16 @@
           <div class="card-body p-4">
             <div class="row align-items-center mb-4">
               <div class="col-auto">
-                {% if current_user.profile_pic_url %}
-                <img src="{{ current_user.profile_pic_url }}" 
-                     alt="Profile Picture" 
-                     class="rounded-circle shadow-sm border"
-                     style="width: 100px; height: 100px; object-fit: cover;">
-                {% else %}
-                <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center text-white shadow-sm" 
-                     style="width: 100px; height: 100px; font-size: 2rem;">
+                <img src="{{ current_user.profile_pic_url or '' }}" alt="Profile Picture"
+                  class="rounded-circle shadow-sm border {% if not current_user.profile_pic_url %}d-none{% endif %}"
+                  id="profile-img" style="width: 100px; height: 100px; object-fit: cover;"
+                  onerror="this.classList.add('d-none'); document.getElementById('fallback-avatar').classList.remove('d-none');">
+
+                <div id="fallback-avatar"
+                  class="rounded-circle bg-secondary d-flex align-items-center justify-content-center text-white shadow-sm {% if current_user.profile_pic_url %}d-none{% endif %}"
+                  style="width: 100px; height: 100px; font-size: 2rem;">
                   {{ current_user.username[0] | upper }}
                 </div>
-                {% endif %}
               </div>
               <div class="col">
                 <label class="form-label fw-semibold">Update Profile Picture</label>
@@ -46,7 +45,7 @@
               <label class="form-label fw-semibold">Username</label>
               <input class="form-control" type="text" name="username" value="{{ current_user.username }}" required>
             </div>
-            
+
             <div class="mb-3">
               <label class="form-label fw-semibold">Email Address</label>
               <input class="form-control" type="email" name="email" value="{{ current_user.email }}" required>
@@ -62,12 +61,13 @@
           <div class="card-body p-4">
             <div class="mb-3">
               <label class="form-label fw-semibold">Current Password</label>
-              <input class="form-control" type="password" name="old_password" placeholder="Required for any changes" required>
+              <input class="form-control" type="password" name="current_password" placeholder="Required for any changes"
+                required>
               <div class="form-text text-primary italic">Confirm your current password to save changes.</div>
             </div>
-            
+
             <hr class="my-4">
-            
+
             <div class="mb-3">
               <label class="form-label fw-semibold">New Password (Optional)</label>
               <input class="form-control" type="password" name="new_password" minlength="8"
@@ -90,12 +90,41 @@
           <h6 class="text-uppercase small fw-bold opacity-75">Member Since</h6>
           <p class="h5 mb-0">
             {% if current_user.created_at %}
-              {{ current_user.created_at.strftime('%B %Y') }}
+            {{ current_user.created_at.strftime('%B %Y') }}
             {% else %}
-              March 2026
+            March 2026
             {% endif %}
           </p>
         </div>
+      </div>
+
+      <!-- Preferences Card -->
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white py-3">
+          <h5 class="card-title mb-0">Preferences</h5>
+        </div>
+        <form method="POST" action="{{ url_for('update_preferences') }}"> <input type="hidden" name="csrf_token"
+            value="{{ csrf_token() }}" />
+          <div class="card-body p-4 text-start">
+            <div class="mb-4"> <label class="form-label fw-bold">Default Task Sorting</label> <select name="sort_by"
+                class="form-select">
+                <option value="newest" {% if session.get('sort_by')=='newest' %}selected{% endif %}>First New (Latest
+                  Created)</option>
+                <option value="oldest" {% if session.get('sort_by')=='oldest' %}selected{% endif %}>First Old (Oldest
+                  Created)</option>
+                <option value="alpha" {% if session.get('sort_by')=='alpha' %}selected{% endif %}>Alphabetical (A-Z)
+                </option>
+              </select> </div>
+            <div class="form-check form-switch mb-3"> <input class="form-check-input" type="checkbox" name="auto_delete"
+                id="autoDelete" {% if session.get('auto_delete') %}checked{% endif %}> <label class="form-check-label"
+                for="autoDelete">Auto-delete tasks when marked "Done"</label> </div>
+            <div class="form-check form-switch"> <input class="form-check-input" type="checkbox" name="confirm_delete"
+                id="confirmDelete" {% if session.get('confirm_delete', True) %}checked{% endif %}> <label
+                class="form-check-label" for="confirmDelete">Show confirmation before deleting</label> </div>
+          </div>
+          <div class="card-footer bg-light p-3"> <button type="submit" class="btn btn-sm btn-outline-primary w-100">Save
+              Preferences</button> </div>
+        </form>
       </div>
 
       <!-- Danger Zone -->
@@ -104,10 +133,12 @@
           <h5 class="card-title mb-0">Danger Zone</h5>
         </div>
         <div class="card-body p-4">
-          <p class="small text-muted">Once you delete your account, there is no going back. All your tasks and categories will be permanently removed.</p>
+          <p class="small text-muted">Once you delete your account, there is no going back. All your tasks and
+            categories will be permanently removed.</p>
           <form method="POST" action="{{ url_for('delete_account') }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-            <button class="btn btn-outline-danger w-100" onclick="return confirm('WARNING: Are you sure you want to delete your account? This action is permanent.')">
+            <button type="submit" class="btn btn-outline-danger w-100"
+              onclick="return confirm('WARNING: Are you sure you want to delete your account? This action is permanent.')">
               Delete My Account
             </button>
           </form>
