@@ -132,12 +132,14 @@
     <!-- Category Filters -->
     <h5 class="mt-4">Filter by Category</h5>
     <div class="d-flex flex-wrap gap-2 mb-2">
+      {% set active_list = selected_category.upper().split(',') %}
+
       {% for c in categories %}
       {% set new_filter = toggle_cat(selected_category, c.name) %}
       <a href="{{ url_for('todo', category=new_filter) }}"
-        class="badge text-decoration-none p-2 {{ 'bg-primary' if c.name in selected_category.upper() else 'bg-secondary' }}">
+        class="badge text-decoration-none p-2 {{ 'bg-primary' if c.name.upper() in active_list else 'bg-secondary' }}">
         {{ c.name }}
-        {% if c.name in selected_category.upper() %} <span class="ms-1">&times;</span> {% endif %}
+        {% if c.name.upper() in active_list %} <span class="ms-1">&times;</span> {% endif %}
       </a>
       {% else %}
       <small class="text-muted">No categories yet.</small>

@@ -6,11 +6,7 @@ import cloudinary.uploader
 from datetime import datetime
 from pathlib import Path
 from dotenv import load_dotenv
-<<<<<<< Settings-Update
-from flask import Flask, render_template, redirect, url_for, request, flash, session
-=======
-from flask import Flask, render_template, redirect, url_for, request, flash, current_app
->>>>>>> dev
+from flask import Flask, render_template, redirect, url_for, request, flash, session, current_app
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from flask_bcrypt import Bcrypt
@@ -321,49 +317,57 @@ def delete_account():
 def todo():
     if request.method == 'POST':
         task_text = request.form.get('task', '').strip()
+        # Clean and uppercase categories immediately for consistency
         cat_list = [c.strip().upper() for c in request.form.get('categories_csv', '').split(',') if c.strip()]
         
         if task_text:
             new_todo = Todo(task=task_text, user_id=current_user.id)
             for clean_name in cat_list:
+                # Find existing category or create a new one
                 cat = Category.query.filter_by(name=clean_name).first() or Category(name=clean_name)
                 if cat not in new_todo.categories:
                     new_todo.categories.append(cat)
+            
             db.session.add(new_todo)
             db.session.commit()
+            flash('Task added!', 'success')
             return redirect(url_for('todo', category=request.args.get('category', '')))
 
+    # --- GET LOGIC ---
     selected_category_input = request.args.get('category', '')
+    
+    # Base query with joinedload for performance (eager loading categories)
     q = Todo.query.options(joinedload(Todo.categories)).filter_by(user_id=current_user.id)
     
-    # FIXED: Intersection (AND) Filter Logic
+    # 1. APPLY INTERSECTION (AND) FILTER
     if selected_category_input:
         cat_filter_list = [c.strip().upper() for c in selected_category_input.split(',') if c.strip()]
-<<<<<<< Settings-Update
-        conditions = [Category.name == c for c in cat_filter_list]
-        matching_cat_ids = db.session.query(Category.id).filter(or_(*conditions)).subquery()
-        q = q.join(Todo.categories).filter(Category.id.in_(matching_cat_ids))
+        for cat_name in cat_filter_list:
+            # By adding .filter(any...) in a loop, SQLAlchemy enforces that 
+            # the task must possess EVERY category in the list.
+            q = q.filter(Todo.categories.any(Category.name == cat_name))
+
+    # 2. APPLY SORTING PREFERENCE
     sort_pref = session.get('sort_by', 'newest')
     if sort_pref == 'alpha':
         q = q.order_by(Todo.completed.asc(), Todo.task.asc())
     elif sort_pref == 'oldest':
         q = q.order_by(Todo.completed.asc(), Todo.id.asc())
-    else:  # 'newest' is the default
+    else:  # Default to 'newest'
         q = q.order_by(Todo.completed.asc(), Todo.id.desc())
-    tasks = q.distinct().all()
-    
-=======
-        for cat_name in cat_filter_list:
-            # Task must have THIS specific category (repeated for each category in filter)
-            q = q.filter(Todo.categories.any(Category.name == cat_name))
 
-    tasks = q.distinct().order_by(Todo.completed.asc(), Todo.id.desc()).all()
->>>>>>> dev
+    # Execute query
+    tasks = q.distinct().all()
+
+    # Fetch only categories that belong to the current user's tasks for the sidebar/filter list
     user_cat_ids = db.session.query(Category.id).join(Todo.categories).filter(Todo.user_id == current_user.id).distinct()
     categories = Category.query.filter(Category.id.in_(user_cat_ids)).order_by(Category.name).all()
 
-    return render_template('todo.html', tasks=tasks, categories=categories, 
-                         selected_category=selected_category_input, toggle_cat=toggle_category_string)
+    return render_template('todo.html', 
+                         tasks=tasks, 
+                         categories=categories, 
+                         selected_category=selected_category_input, 
+                         toggle_cat=toggle_category_string)
     
 @app.post('/todo/<int:todo_id>/toggle')
 @login_required
