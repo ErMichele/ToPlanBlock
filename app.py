@@ -4,8 +4,13 @@ import io
 import cloudinary
 import cloudinary.uploader
 from datetime import datetime
+from pathlib import Path
 from dotenv import load_dotenv
+<<<<<<< Settings-Update
 from flask import Flask, render_template, redirect, url_for, request, flash, session
+=======
+from flask import Flask, render_template, redirect, url_for, request, flash, current_app
+>>>>>>> dev
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from flask_bcrypt import Bcrypt
@@ -22,14 +27,18 @@ app = Flask(__name__)
 
 # --- CONFIGURATION ---
 app.config['SECRET_KEY'] = os.getenv("SECRET_KEY", "secure-fallback-key-for-local-dev")
-if os.getenv("BRANCH") == "production":
+IS_PROD = os.getenv("BRANCH") == "production"
+
+if IS_PROD:
     database_url = os.getenv('DATABASE_URL')
 else:
     database_url = 'sqlite:///todo.db'
+    UPLOAD_FOLDER = os.path.join('static', 'uploads', 'profile_pics')
+    os.makedirs(os.path.join(app.root_path, UPLOAD_FOLDER), exist_ok=True)
 
 app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024  # Aumentato a 5MB per Cloudinary
+app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024  # 5MB
 
 cloudinary.config(
     cloud_name = os.getenv('CLOUDINARY_CLOUD_NAME'),
@@ -98,21 +107,31 @@ def load_user(user_id):
 
 # --------------- Helpers ----------------
 def allowed_file(filename):
+    """Check if the file has an allowed extension."""
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-def delete_old_cloudinary_image(url):
-    """Estrae il public_id dall'URL e cancella l'immagine da Cloudinary per liberare spazio."""
+def delete_old_image(url):
+    """Handles deletion for both Cloudinary and local files."""
     if not url:
         return
-    try:
-        parts = url.split('/')
-        if 'upload' in parts:
-            idx = parts.index('upload')
-            public_id_with_ext = "/".join(parts[idx+2:]) 
-            public_id = public_id_with_ext.rsplit('.', 1)[0]
-            cloudinary.uploader.destroy(public_id, invalidate=True)
-    except Exception as e:
-        print(f"Error with the removal of the old image: {e}")
+    
+    # Check if it's a local file
+    if url.startswith('/static/uploads/'):
+        relative_path = url.lstrip('/')
+        full_path = os.path.join(current_app.root_path, relative_path)
+        if os.path.exists(full_path):
+            os.remove(full_path)
+            
+    # Otherwise, assume Cloudinary
+    elif 'cloudinary.com' in url:
+        try:
+            parts = url.split('/')
+            if 'upload' in parts:
+                idx = parts.index('upload')
+                public_id = "/".join(parts[idx+2:]).rsplit('.', 1)[0]
+                cloudinary.uploader.destroy(public_id, invalidate=True)
+        except Exception as e:
+            print(f"Error removing Cloudinary image: {e}")
 
 def toggle_category_string(current_str, toggle_name):
     """Helper to add/remove a category name from a comma-separated string."""
@@ -139,6 +158,10 @@ def internal_error(error):
     db.session.rollback()
     return render_template('500.html'), 500
 
+@app.errorhandler(413)
+def request_entity_too_large(error):
+    flash("The file is too large! Maximum allowed size is 5MB.", "danger")
+    return redirect(url_for('account'))
 # ---------------- Routes ----------------
 @app.route('/')
 def landing():
@@ -146,8 +169,7 @@ def landing():
 
 @app.route('/privacy')
 def privacy():
-    now_date = datetime.now().strftime('%d/%m/%Y') 
-    return render_template('privacy.html', now_date=now_date)
+    return render_template('privacy.html')
 
 @app.route('/terms')
 def terms():
@@ -226,24 +248,24 @@ def account():
         if 'picture' in request.files:
             file = request.files['picture']
             if file and file.filename != '' and allowed_file(file.filename):
-                try:
-                    old_url = current_user.profile_pic_url
-
+                old_url = current_user.profile_pic_url
+                
+                if IS_PROD:
+                    # Cloudinary Path
                     upload_result = cloudinary.uploader.upload(
-                        file,
-                        folder = "profile_pics/",
-                        public_id = f"user_{current_user.id}_{uuid.uuid4().hex[:5]}",
-                        transformation = [
-                            {'width': 400, 'height': 400, 'crop': 'fill', 'gravity': 'face', 'quality': 'auto'}
-                        ]
+                        file, folder="profile_pics/",
+                        public_id=f"user_{current_user.id}_{uuid.uuid4().hex[:5]}",
+                        transformation=[{'width': 400, 'height': 400, 'crop': 'fill'}]
                     )
                     current_user.profile_pic_url = upload_result.get('secure_url')
+                else:
+                    # Local Path
+                    filename = f"user_{current_user.id}_{uuid.uuid4().hex[:5]}.webp"
+                    filepath = os.path.join(current_app.root_path, 'static/uploads/profile_pics', filename)
+                    file.save(filepath)
+                    current_user.profile_pic_url = f"/static/uploads/profile_pics/{filename}"
 
-                    if old_url:
-                        delete_old_cloudinary_image(old_url)
-
-                except Exception as e:
-                    flash(f"Error uploading image: {str(e)}", 'danger')
+                delete_old_image(old_url)
 
         # Handle Password Change
         new_pw = request.form.get('new_password', '').strip()
@@ -276,7 +298,7 @@ def update_preferences():
 @login_required
 def delete_account():
     if current_user.profile_pic_url:
-        delete_old_cloudinary_image(current_user.profile_pic_url)
+        delete_old_image(current_user.profile_pic_url)
 
     user_todos = Todo.query.filter_by(user_id=current_user.id).all()
     affected_cats = set()
@@ -299,35 +321,25 @@ def delete_account():
 def todo():
     if request.method == 'POST':
         task_text = request.form.get('task', '').strip()
-        raw_categories = request.form.get('categories_csv', '')
-        cat_list = [c.strip() for c in raw_categories.split(',') if c.strip()]
-
+        cat_list = [c.strip().upper() for c in request.form.get('categories_csv', '').split(',') if c.strip()]
         
         if task_text:
             new_todo = Todo(task=task_text, user_id=current_user.id)
-            for name in cat_list:
-                clean_name = name.strip().upper()
-                if not clean_name:
-                    continue
-                    
-                cat = Category.query.filter_by(name=clean_name).first()
-                if not cat:
-                    cat = Category(name=clean_name)
-                    db.session.add(cat)
-                
+            for clean_name in cat_list:
+                cat = Category.query.filter_by(name=clean_name).first() or Category(name=clean_name)
                 if cat not in new_todo.categories:
                     new_todo.categories.append(cat)
-            
             db.session.add(new_todo)
             db.session.commit()
-            flash('Task added!', 'success')
             return redirect(url_for('todo', category=request.args.get('category', '')))
 
     selected_category_input = request.args.get('category', '')
-    
     q = Todo.query.options(joinedload(Todo.categories)).filter_by(user_id=current_user.id)
+    
+    # FIXED: Intersection (AND) Filter Logic
     if selected_category_input:
         cat_filter_list = [c.strip().upper() for c in selected_category_input.split(',') if c.strip()]
+<<<<<<< Settings-Update
         conditions = [Category.name == c for c in cat_filter_list]
         matching_cat_ids = db.session.query(Category.id).filter(or_(*conditions)).subquery()
         q = q.join(Todo.categories).filter(Category.id.in_(matching_cat_ids))
@@ -340,15 +352,19 @@ def todo():
         q = q.order_by(Todo.completed.asc(), Todo.id.desc())
     tasks = q.distinct().all()
     
+=======
+        for cat_name in cat_filter_list:
+            # Task must have THIS specific category (repeated for each category in filter)
+            q = q.filter(Todo.categories.any(Category.name == cat_name))
+
+    tasks = q.distinct().order_by(Todo.completed.asc(), Todo.id.desc()).all()
+>>>>>>> dev
     user_cat_ids = db.session.query(Category.id).join(Todo.categories).filter(Todo.user_id == current_user.id).distinct()
     categories = Category.query.filter(Category.id.in_(user_cat_ids)).order_by(Category.name).all()
 
-    return render_template('todo.html', 
-                         tasks=tasks, 
-                         categories=categories, 
-                         selected_category=selected_category_input, 
-                         toggle_cat=toggle_category_string)
-
+    return render_template('todo.html', tasks=tasks, categories=categories, 
+                         selected_category=selected_category_input, toggle_cat=toggle_category_string)
+    
 @app.post('/todo/<int:todo_id>/toggle')
 @login_required
 def toggle(todo_id):

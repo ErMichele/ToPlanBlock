@@ -8,8 +8,6 @@ __pycache__/
 instance/
 *.db
 *.sqlite3
-static/upload/*
-!static/upload/.gitkeep
-
+static/uploads/*
 # Logs
 *.log

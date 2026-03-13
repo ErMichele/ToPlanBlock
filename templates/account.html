@@ -23,16 +23,25 @@
           <div class="card-body p-4">
             <div class="row align-items-center mb-4">
               <div class="col-auto">
+<<<<<<< Settings-Update
                 {% if current_user.profile_pic_url %}
                 <img src="{{ current_user.profile_pic_url }}" alt="Profile Picture"
                   class="rounded-circle shadow-sm border" style="width: 100px; height: 100px; object-fit: cover;">
                 {% else %}
                 <div
                   class="rounded-circle bg-secondary d-flex align-items-center justify-content-center text-white shadow-sm"
+=======
+                <img src="{{ current_user.profile_pic_url or '' }}" alt="Profile Picture"
+                  class="rounded-circle shadow-sm border {% if not current_user.profile_pic_url %}d-none{% endif %}"
+                  id="profile-img" style="width: 100px; height: 100px; object-fit: cover;"
+                  onerror="this.classList.add('d-none'); document.getElementById('fallback-avatar').classList.remove('d-none');">
+
+                <div id="fallback-avatar"
+                  class="rounded-circle bg-secondary d-flex align-items-center justify-content-center text-white shadow-sm {% if current_user.profile_pic_url %}d-none{% endif %}"
+>>>>>>> dev
                   style="width: 100px; height: 100px; font-size: 2rem;">
                   {{ current_user.username[0] | upper }}
                 </div>
-                {% endif %}
               </div>
               <div class="col">
                 <label class="form-label fw-semibold">Update Profile Picture</label>
