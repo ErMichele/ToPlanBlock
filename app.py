@@ -268,6 +268,7 @@ def account():
 def update_preferences():
     session['auto_delete'] = 'auto_delete' in request.form
     session['confirm_delete'] = 'confirm_delete' in request.form
+    session['sort_by'] = request.form.get('sort_by', 'newest')
     flash('Preferences updated (Session saved).', 'success')
     return redirect(url_for('account'))
 
@@ -330,8 +331,14 @@ def todo():
         conditions = [Category.name == c for c in cat_filter_list]
         matching_cat_ids = db.session.query(Category.id).filter(or_(*conditions)).subquery()
         q = q.join(Todo.categories).filter(Category.id.in_(matching_cat_ids))
-
-    tasks = q.distinct().order_by(Todo.completed.asc(), Todo.id.desc()).all()
+    sort_pref = session.get('sort_by', 'newest')
+    if sort_pref == 'alpha':
+        q = q.order_by(Todo.completed.asc(), Todo.task.asc())
+    elif sort_pref == 'oldest':
+        q = q.order_by(Todo.completed.asc(), Todo.id.asc())
+    else:  # 'newest' is the default
+        q = q.order_by(Todo.completed.asc(), Todo.id.desc())
+    tasks = q.distinct().all()
     
     user_cat_ids = db.session.query(Category.id).join(Todo.categories).filter(Todo.user_id == current_user.id).distinct()
     categories = Category.query.filter(Category.id.in_(user_cat_ids)).order_by(Category.name).all()

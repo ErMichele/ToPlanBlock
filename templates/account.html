@@ -106,6 +106,19 @@
         <form method="POST" action="{{ url_for('update_preferences') }}">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
           <div class="card-body p-4 text-start">
+
+            <div class="mb-4">
+              <label class="form-label fw-bold">Default Task Sorting</label>
+              <select name="sort_by" class="form-select">
+                <option value="newest" {% if session.get('sort_by')=='newest' %}selected{% endif %}>First New (Latest
+                  Created)</option>
+                <option value="oldest" {% if session.get('sort_by')=='oldest' %}selected{% endif %}>First Old (Oldest
+                  Created)</option>
+                <option value="alpha" {% if session.get('sort_by')=='alpha' %}selected{% endif %}>Alphabetical (A-Z)
+                </option>
+              </select>
+            </div>
+
             <div class="form-check form-switch mb-3">
               <input class="form-check-input" type="checkbox" name="auto_delete" id="autoDelete" {% if
                 session.get('auto_delete') %}checked{% endif %}>
