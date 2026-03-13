@@ -1,28 +1,45 @@
 {% extends "base.html" %}
-{% block title %}Privacy Policy{% endblock %}
+{% block title %}Privacy Policy - ToPlanBlock{% endblock %}
 {% block content %}
 <div class="container py-5">
-    <h1>Privacy Policy</h1>
-    <p class="text-muted">Last update: {{ now_date }}</p>
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <h1 class="fw-bold mb-4">Privacy Policy</h1>
+            <p class="text-muted">Effective Date: March 13, 2026</p>
 
-    <h3>1. Data Controller</h3>
-    <p>The data controller is: <strong>ToPlanBlock</strong><br>
-        Contact: micheleacciuffi@gmail.com</p>
+            <section class="mb-4">
+                <h4 class="fw-bold">1. Data Controller</h4>
+                <p>The data controller for this application is <strong>ToPlanBlock</strong>. For any privacy-related inquiries, you can contact: <a href="mailto:micheleacciuffi@gmail.com">micheleacciuffi@gmail.com</a>.</p>
+            </section>
 
-    <h3>2. Collected Data</h3>
-    <p>We collect the following data exclusively to provide the service:</p>
-    <ul>
-        <li>Email and Username (for registration and login).</li>
-        <li>Usage Data (Created tasks and categories).</li>
-        <li>Profile Pictures (optional).</li>
-        <li>Technical Cookies (necessary to keep the login session active).</li>
-    </ul>
+            <section class="mb-4">
+                <h4 class="fw-bold">2. Data We Collect</h4>
+                <ul>
+                    <li><strong>Account Information:</strong> Email and Username required for registration and authentication.</li>
+                    <li><strong>User Content:</strong> Tasks and Categories created within the application.</li>
+                    <li><strong>Profile Imagery:</strong> Optional profile pictures uploaded by the user.</li>
+                    <li><strong>Technical Data:</strong> Essential session cookies required for login functionality. We do not use tracking or advertising cookies.</li>
+                </ul>
+            </section>
 
-    <h3>3. Purpose</h3>
-    <p>The data is used solely to allow the use of the "ToPlanBlock" application. We do not sell data to third parties
-        for advertising purposes.</p>
+            <section class="mb-4">
+                <h4 class="fw-bold">3. Third-Party Service Providers</h4>
+                <p>To provide our services, we share specific data with the following processors:</p>
+                <ul>
+                    <li><strong>Cloudinary:</strong> Used for the storage and optimization of profile pictures. When you upload an image, it is transmitted to and stored on Cloudinary's servers.</li>
+                </ul>
+            </section>
 
-    <h3>4. Deletion</h3>
-    <p>You can delete your account and all your data at any time directly from your profile settings.</p>
+            <section class="mb-4">
+                <h4 class="fw-bold">4. Data Retention & Deletion</h4>
+                <p>We retain your data as long as your account is active. You may delete your account at any time via the "Account Settings" page. Deleting your account will result in the permanent removal of:</p>
+                <ul>
+                    <li>Your profile information and credentials.</li>
+                    <li>All associated tasks and categories.</li>
+                    <li>Your profile image (it will be programmatically removed from our storage and Cloudinary).</li>
+                </ul>
+            </section>
+        </div>
+    </div>
 </div>
 {% endblock %}
