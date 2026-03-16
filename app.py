@@ -317,13 +317,11 @@ def delete_account():
 def todo():
     if request.method == 'POST':
         task_text = request.form.get('task', '').strip()
-        # Clean and uppercase categories immediately for consistency
         cat_list = [c.strip().upper() for c in request.form.get('categories_csv', '').split(',') if c.strip()]
         
         if task_text:
             new_todo = Todo(task=task_text, user_id=current_user.id)
             for clean_name in cat_list:
-                # Find existing category or create a new one
                 cat = Category.query.filter_by(name=clean_name).first() or Category(name=clean_name)
                 if cat not in new_todo.categories:
                     new_todo.categories.append(cat)
@@ -335,16 +333,12 @@ def todo():
 
     # --- GET LOGIC ---
     selected_category_input = request.args.get('category', '')
-    
-    # Base query with joinedload for performance (eager loading categories)
     q = Todo.query.options(joinedload(Todo.categories)).filter_by(user_id=current_user.id)
     
     # 1. APPLY INTERSECTION (AND) FILTER
     if selected_category_input:
         cat_filter_list = [c.strip().upper() for c in selected_category_input.split(',') if c.strip()]
         for cat_name in cat_filter_list:
-            # By adding .filter(any...) in a loop, SQLAlchemy enforces that 
-            # the task must possess EVERY category in the list.
             q = q.filter(Todo.categories.any(Category.name == cat_name))
 
     # 2. APPLY SORTING PREFERENCE
@@ -356,10 +350,7 @@ def todo():
     else:  # Default to 'newest'
         q = q.order_by(Todo.completed.asc(), Todo.id.desc())
 
-    # Execute query
     tasks = q.distinct().all()
-
-    # Fetch only categories that belong to the current user's tasks for the sidebar/filter list
     user_cat_ids = db.session.query(Category.id).join(Todo.categories).filter(Todo.user_id == current_user.id).distinct()
     categories = Category.query.filter(Category.id.in_(user_cat_ids)).order_by(Category.name).all()
 
