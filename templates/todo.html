@@ -230,6 +230,7 @@
 
 <script>
   document.addEventListener('DOMContentLoaded', function () {
+    const todoForm = document.getElementById('todo-form');
     const tagContainer = document.getElementById('tag-container');
     const tagInput = document.getElementById('tag-input');
     const hiddenInput = document.getElementById('categories-hidden');
@@ -309,6 +310,26 @@
 
     document.addEventListener('click', (e) => {
       if (!tagContainer.contains(e.target)) suggestions.style.display = 'none';
+    });
+
+    function addTag(label) {
+      label = label.trim().toUpperCase();
+      if (label && !tags.includes(label)) {
+        tags.push(label);
+        const tagEl = document.createElement('div');
+        tagEl.className = 'tag-badge';
+        tagEl.innerHTML = `<span>${label}</span><span class="remove-tag" data-item="${label}">&times;</span>`;
+        tagContainer.insertBefore(tagEl, tagInput);
+        updateHiddenInput();
+      }
+      tagInput.value = '';
+      suggestions.style.display = 'none';
+    }
+
+    todoForm.addEventListener('submit', function() {
+      if (tagInput.value.trim() !== '') {
+        addTag(tagInput.value);
+      }
     });
   });
 </script>
