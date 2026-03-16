@@ -29,8 +29,18 @@
       /* Hidden by default, activated by JS */
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     }
+
+    * {
+      scroll-behavior: smooth;
+      scrollbar-width: none;
+    }
+
+    *::-webkit-scrollbar {
+      display: none;
+    }
   </style>
 </head>
+
 <body class="bg-light">
   <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
     <div class="container">
@@ -108,4 +118,5 @@
     window.onload = checkCookies;
   </script>
 </body>
+
 </html>
