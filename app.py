@@ -157,16 +157,13 @@ def render_markdown(text):
     # Extensions explained:
     # 'extra': Tables, footnotes, etc.
     # 'sane_lists': Allows nesting with 2 spaces instead of a strict 4.
-    # 'nl2br': Turns newlines into <br> tags.
     # 'markdown_checklist.extension': Enables [x] and [ ] rendering.
     
     return markdown.markdown(text, extensions=[
         'extra', 
         'sane_lists', 
-        'nl2br', 
         'markdown_checklist.extension'
     ])
-
 # ---------------- Post Routes ----------------
 @app.post('/todo/<int:todo_id>/toggle')
 @login_required
