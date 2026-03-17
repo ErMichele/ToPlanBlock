@@ -23,9 +23,11 @@ This update focuses on **[describe the main goal of this release]**, thanks to *
 - [x] Feature coming in the next updates
 - [ ] Feature coming in future updates
 
-> Checked items indicate features coming in the next release.
+***Checked items indicate features coming in the next release.***
 
-**Note:** If a section is blank, write `"Nothing [Added/Reworked/Fixed] in this version"` to maintain template structure.
+> [!NOTE]
+> If a section is blank, write `"Nothing [Added/Reworked/Fixed] in this version"` to maintain template structure.
+> Also when you want to add "bullets in bullets", use 4 spaces so the version page can render them correctly
 
 ---
 
