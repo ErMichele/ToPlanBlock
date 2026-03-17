@@ -1,8 +1,9 @@
 import os
 import uuid
-import io
 import cloudinary
 import cloudinary.uploader
+import requests
+import markdown
 from datetime import datetime
 from pathlib import Path
 from dotenv import load_dotenv
@@ -14,6 +15,7 @@ from flask_migrate import Migrate
 from flask_wtf.csrf import CSRFProtect
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+from flask_caching import Cache
 from sqlalchemy.orm import joinedload
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import or_
@@ -50,6 +52,8 @@ app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
     'pool_pre_ping': True,
     'pool_timeout': 30
 }
+
+cache = Cache(app, config={'CACHE_TYPE': 'SimpleCache', 'CACHE_DEFAULT_TIMEOUT': 3600})
 
 # --- EXTENSIONS ---
 db = SQLAlchemy(app)
@@ -144,6 +148,90 @@ def toggle_category_string(current_str, toggle_name):
     
     return ",".join(parts)
 
+#---------------- Template Filters ----------------
+@app.template_filter('markdown')
+def render_markdown(text):
+    if not text:
+        return ""
+    
+    # Extensions explained:
+    # 'extra': Tables, footnotes, etc.
+    # 'sane_lists': Allows nesting with 2 spaces instead of a strict 4.
+    # 'nl2br': Turns newlines into <br> tags.
+    # 'markdown_checklist.extension': Enables [x] and [ ] rendering.
+    
+    return markdown.markdown(text, extensions=[
+        'extra', 
+        'sane_lists', 
+        'nl2br', 
+        'markdown_checklist.extension'
+    ])
+
+# ---------------- Post Routes ----------------
+@app.post('/todo/<int:todo_id>/toggle')
+@login_required
+def toggle(todo_id):
+    t = Todo.query.filter_by(id=todo_id, user_id=current_user.id).first_or_404()
+    t.completed = not t.completed
+    
+    if session.get('auto_delete') and t.completed:
+        cats = list(t.categories)
+        db.session.delete(t)
+        db.session.commit()
+        for cat in cats:
+            if not cat.todos:
+                db.session.delete(cat)
+        db.session.commit()
+        flash('Task completed and auto-deleted.', 'info')
+    else:
+        db.session.commit()
+        
+    return redirect(url_for('todo', category=request.args.get('category', '')))
+
+@app.post('/todo/<int:todo_id>/delete')
+@login_required
+def delete(todo_id):
+    t = Todo.query.filter_by(id=todo_id, user_id=current_user.id).first_or_404()
+    cats = list(t.categories)
+    db.session.delete(t)
+    db.session.commit()
+    for cat in cats:
+        if not cat.todos:
+            db.session.delete(cat)
+    db.session.commit()
+    return redirect(url_for('todo', category=request.args.get('category', '')))
+
+@app.post('/update_preferences')
+@login_required
+def update_preferences():
+    session['auto_delete'] = 'auto_delete' in request.form
+    session['confirm_delete'] = 'confirm_delete' in request.form
+    session['sort_by'] = request.form.get('sort_by', 'newest')
+    flash('Preferences updated (Session saved).', 'success')
+    return redirect(url_for('account'))
+
+@app.post('/account/delete')
+@login_required
+def delete_account():
+    if current_user.profile_pic_url:
+        delete_old_image(current_user.profile_pic_url)
+
+    user_todos = Todo.query.filter_by(user_id=current_user.id).all()
+    affected_cats = set()
+    for t in user_todos:
+        for cat in t.categories:
+            affected_cats.add(cat)
+
+    db.session.delete(current_user)
+    db.session.commit()
+
+    for cat in affected_cats:
+        c = db.session.get(Category, cat.id)
+        if c and not c.todos:
+            db.session.delete(c)
+    db.session.commit()
+    return redirect(url_for('landing'))
+
 # ---------------- Error Handlers ----------------
 @app.errorhandler(404)
 def not_found_error(error):
@@ -158,6 +246,7 @@ def internal_error(error):
 def request_entity_too_large(error):
     flash("The file is too large! Maximum allowed size is 5MB.", "danger")
     return redirect(url_for('account'))
+
 # ---------------- Routes ----------------
 @app.route('/')
 def landing():
@@ -281,37 +370,6 @@ def account():
 
     return render_template('account.html')
 
-@app.post('/update_preferences')
-@login_required
-def update_preferences():
-    session['auto_delete'] = 'auto_delete' in request.form
-    session['confirm_delete'] = 'confirm_delete' in request.form
-    session['sort_by'] = request.form.get('sort_by', 'newest')
-    flash('Preferences updated (Session saved).', 'success')
-    return redirect(url_for('account'))
-
-@app.post('/account/delete')
-@login_required
-def delete_account():
-    if current_user.profile_pic_url:
-        delete_old_image(current_user.profile_pic_url)
-
-    user_todos = Todo.query.filter_by(user_id=current_user.id).all()
-    affected_cats = set()
-    for t in user_todos:
-        for cat in t.categories:
-            affected_cats.add(cat)
-
-    db.session.delete(current_user)
-    db.session.commit()
-
-    for cat in affected_cats:
-        c = db.session.get(Category, cat.id)
-        if c and not c.todos:
-            db.session.delete(c)
-    db.session.commit()
-    return redirect(url_for('landing'))
-
 @app.route('/todo', methods=['GET', 'POST'])
 @login_required
 def todo():
@@ -359,39 +417,20 @@ def todo():
                          categories=categories, 
                          selected_category=selected_category_input, 
                          toggle_cat=toggle_category_string)
-    
-@app.post('/todo/<int:todo_id>/toggle')
-@login_required
-def toggle(todo_id):
-    t = Todo.query.filter_by(id=todo_id, user_id=current_user.id).first_or_404()
-    t.completed = not t.completed
-    
-    if session.get('auto_delete') and t.completed:
-        cats = list(t.categories)
-        db.session.delete(t)
-        db.session.commit()
-        for cat in cats:
-            if not cat.todos:
-                db.session.delete(cat)
-        db.session.commit()
-        flash('Task completed and auto-deleted.', 'info')
-    else:
-        db.session.commit()
-        
-    return redirect(url_for('todo', category=request.args.get('category', '')))
 
-@app.post('/todo/<int:todo_id>/delete')
-@login_required
-def delete(todo_id):
-    t = Todo.query.filter_by(id=todo_id, user_id=current_user.id).first_or_404()
-    cats = list(t.categories)
-    db.session.delete(t)
-    db.session.commit()
-    for cat in cats:
-        if not cat.todos:
-            db.session.delete(cat)
-    db.session.commit()
-    return redirect(url_for('todo', category=request.args.get('category', '')))
+@app.route('/version')
+@cache.cached(timeout=3600) # This route is cached for 1 hour
+def version():
+    url = "https://api.github.com/repos/ermichele/toplanblock/releases"
+    releases = []
+    try:
+        response = requests.get(url, headers={"User-Agent": "ToPlanBlock-App"}, timeout=10)
+        if response.status_code == 200:
+            releases = response.json()
+    except Exception as e:
+        app.logger.error(f"GitHub API Error: {e}")
+
+    return render_template('version.html', releases=releases)
 
 @app.route('/health')
 @limiter.exempt
