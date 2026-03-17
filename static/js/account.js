@@ -37,8 +37,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 e.preventDefault();
                 targetUrl = this.href;
                 unsavedList.innerHTML = '';
-                if (status.info) unsavedList.innerHTML += '<li>Informazioni Generali</li>';
-                if (status.prefs) unsavedList.innerHTML += '<li>Preferenze Account</li>';
+                if (status.info) unsavedList.innerHTML += '<li>General information</li>';
+                if (status.prefs) unsavedList.innerHTML += '<li>Account preferences</li>';
                 unsavedModal.show();
             }
         });
