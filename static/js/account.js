@@ -27,7 +27,6 @@ document.addEventListener('DOMContentLoaded', function() {
         };
     };
 
-    // 3. Intercettazione Link
     document.querySelectorAll('a').forEach(link => {
         link.addEventListener('click', function(e) {
             if (this.getAttribute('href') === '#' || this.getAttribute('data-bs-toggle')) return;
@@ -37,27 +36,24 @@ document.addEventListener('DOMContentLoaded', function() {
                 e.preventDefault();
                 targetUrl = this.href;
                 unsavedList.innerHTML = '';
-                if (status.info) unsavedList.innerHTML += '<li>Informazioni Generali</li>';
-                if (status.prefs) unsavedList.innerHTML += '<li>Preferenze Account</li>';
+                if (status.info) unsavedList.innerHTML += '<li>General information</li>';
+                if (status.prefs) unsavedList.innerHTML += '<li>Account preferences</li>';
                 unsavedModal.show();
             }
         });
     });
 
-    // 4. Gestione "Leave Anyway"
     document.getElementById('confirmLeaveBtn').addEventListener('click', () => {
         skipCheck = true;
         window.location.href = targetUrl;
     });
 
-    // 5. Gestione "Salva" (Submit dei form)
     [infoForm, prefsForm].forEach(form => {
         form.addEventListener('submit', () => {
             skipCheck = true; 
         });
     });
 
-    // 6. Protezione browser (Tab chiusa/Refresh)
     window.addEventListener('beforeunload', (e) => {
         const status = isDirty();
         if (status && (status.info || status.prefs)) {
