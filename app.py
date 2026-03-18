@@ -182,8 +182,9 @@ def toggle(todo_id):
         flash('Task completed and auto-deleted.', 'info')
     else:
         db.session.commit()
-        
-    return redirect(url_for('todo', category=request.args.get('category', '')))
+    return redirect(url_for('todo', 
+                            category=request.args.get('category', ''), 
+                            page=request.args.get('page', 1)))
 
 @app.post('/todo/<int:todo_id>/delete')
 @login_required
@@ -196,7 +197,9 @@ def delete(todo_id):
         if not cat.todos:
             db.session.delete(cat)
     db.session.commit()
-    return redirect(url_for('todo', category=request.args.get('category', '')))
+    return redirect(url_for('todo', 
+                            category=request.args.get('category', ''), 
+                            page=request.args.get('page', 1)))
 
 @app.post('/update_preferences')
 @login_required
@@ -384,19 +387,17 @@ def todo():
             db.session.add(new_todo)
             db.session.commit()
             flash('Task added!', 'success')
-            return redirect(url_for('todo', category=request.args.get('category', '')))
+            return redirect(url_for('todo', category=request.args.get('category', ''), page=request.args.get('page', 1)))
 
-    # --- GET LOGIC ---
+    page = request.args.get('page', 1, type=int)
     selected_category_input = request.args.get('category', '')
     q = Todo.query.options(joinedload(Todo.categories)).filter_by(user_id=current_user.id)
     
-    # 1. APPLY INTERSECTION (AND) FILTER
     if selected_category_input:
         cat_filter_list = [c.strip().upper() for c in selected_category_input.split(',') if c.strip()]
         for cat_name in cat_filter_list:
             q = q.filter(Todo.categories.any(Category.name == cat_name))
 
-    # 2. APPLY SORTING PREFERENCE
     sort_pref = session.get('sort_by', 'newest')
     if sort_pref == 'alpha':
         q = q.order_by(Todo.completed.asc(), Todo.task.asc())
@@ -405,12 +406,12 @@ def todo():
     else:  # Default to 'newest'
         q = q.order_by(Todo.completed.asc(), Todo.id.desc())
 
-    tasks = q.distinct().all()
+    pagination = q.distinct().paginate(page=page, per_page=10, error_out=False)
     user_cat_ids = db.session.query(Category.id).join(Todo.categories).filter(Todo.user_id == current_user.id).distinct()
     categories = Category.query.filter(Category.id.in_(user_cat_ids)).order_by(Category.name).all()
 
     return render_template('todo.html', 
-                         tasks=tasks, 
+                         pagination=pagination,
                          categories=categories, 
                          selected_category=selected_category_input, 
                          toggle_cat=toggle_category_string)
@@ -423,7 +424,7 @@ def version():
     try:
         response = requests.get(url, headers={"User-Agent": "ToPlanBlock-App"}, timeout=10)
         if response.status_code == 200:
-            releases = response.json()
+            releases = response.json()[:5]
     except Exception as e:
         app.logger.error(f"GitHub API Error: {e}")
 
