@@ -108,6 +108,9 @@
                 <option value="dark" {% if session.get('theme')=='dark' %}selected{% endif %}>
                   Dark Mode
                 </option>
+                <option value="system" {% if session.get('theme')=='system' %}selected{% endif %}>
+                  System Default
+                </option>
               </select>
               <div class="form-text">Choose your preferred visual appearance.</div>
             </div>

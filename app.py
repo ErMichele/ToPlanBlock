@@ -219,7 +219,7 @@ def update_preferences():
     session['auto_delete'] = 'auto_delete' in request.form
     session['confirm_delete'] = 'confirm_delete' in request.form
     session['sort_by'] = request.form.get('sort_by', 'newest')
-    session['theme'] = request.form.get('theme', 'light')
+    session['theme'] = request.form.get('theme', 'system')
     flash('Preferences updated (Session saved).', 'success')
     return redirect(url_for('account'))
 
