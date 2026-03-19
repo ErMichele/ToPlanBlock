@@ -14,7 +14,7 @@
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
 
         <div class="card border-0 shadow-sm mb-4">
-          <div class="card-header bg-white py-3">
+          <div class="card-header bg-body-secondary py-3">
             <h5 class="card-title mb-0">General Information</h5>
           </div>
           <div class="card-body p-4">
@@ -26,7 +26,7 @@
                   onerror="this.classList.add('d-none'); document.getElementById('fallback-avatar').classList.remove('d-none');">
 
                 <div id="fallback-avatar"
-                  class="rounded-circle bg-secondary d-flex align-items-center justify-content-center text-white shadow-sm {% if current_user.profile_pic_url %}d-none{% endif %}"
+                  class="rounded-circle bg-secondary d-flex align-items-center justify-content-center text-body shadow-sm {% if current_user.profile_pic_url %}d-none{% endif %}"
                   style="width: 100px; height: 100px; font-size: 2rem;">
                   {{ current_user.username[0] | upper }}
                 </div>
@@ -51,7 +51,7 @@
         </div>
 
         <div class="card border-0 shadow-sm mb-4">
-          <div class="card-header bg-white py-3">
+          <div class="card-header bg-body-secondary py-3">
             <h5 class="card-title mb-0">Security</h5>
           </div>
           <div class="card-body p-4">
@@ -59,7 +59,7 @@
               <label class="form-label fw-semibold">Current Password</label>
               <input class="form-control" type="password" name="current_password" placeholder="Required for any changes"
                 required>
-              <div class="form-text text-primary italic">Confirm your current password to save changes.</div>
+              <div class="form-text text-body-secondary italic">Confirm your current password to save changes.</div>
             </div>
 
             <hr class="my-4">
@@ -71,7 +71,7 @@
               <div class="form-text">Must be at least 8 characters long.</div>
             </div>
           </div>
-          <div class="card-footer bg-light p-3 d-flex justify-content-end">
+          <div class="card-footer bg-body-tertiary p-3 d-flex justify-content-end">
             <button type="submit" class="btn btn-primary px-4 save-btn">Save All Changes</button>
           </div>
         </div>
@@ -93,12 +93,27 @@
       </div>
 
       <div class="card border-0 shadow-sm mb-4">
-        <div class="card-header bg-white py-3">
+        <div class="card-header bg-body-secondary py-3">
           <h5 class="card-title mb-0">Preferences</h5>
         </div>
         <form id="prefsForm" method="POST" action="{{ url_for('update_preferences') }}">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
           <div class="card-body p-4 text-start">
+            <div class="mb-4">
+              <label class="form-label fw-bold">Site Theme</label>
+              <select name="theme" class="form-select">
+                <option value="light" {% if session.get('theme')=='light' %}selected{% endif %}>
+                  Light Mode
+                </option>
+                <option value="dark" {% if session.get('theme')=='dark' %}selected{% endif %}>
+                  Dark Mode
+                </option>
+                <option value="system" {% if session.get('theme')=='system' %}selected{% endif %}>
+                  System Default
+                </option>
+              </select>
+              <div class="form-text">Choose your preferred visual appearance.</div>
+            </div>
             <div class="mb-4">
               <label class="form-label fw-bold">Default Task Sorting</label>
               <select name="sort_by" class="form-select">
@@ -121,7 +136,7 @@
               <label class="form-check-label" for="confirmDelete">Show confirmation before deleting</label>
             </div>
           </div>
-          <div class="card-footer bg-light p-3">
+          <div class="card-footer bg-body-tertiary p-3">
             <button type="submit" class="btn btn-sm btn-outline-primary w-100 save-btn">Save Preferences</button>
           </div>
         </form>

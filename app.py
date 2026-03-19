@@ -148,6 +148,18 @@ def toggle_category_string(current_str, toggle_name):
     
     return ",".join(parts)
 
+@cache.cached(timeout=3600) # This function is cached for 1 hour
+def github_api_request():
+    """Helper to make GitHub API requests with error handling."""
+    url = "https://api.github.com/repos/ermichele/toplanblock/releases"
+    try:
+        response = requests.get(url, headers={"User-Agent": "ToPlanBlock-App"}, timeout=10)
+        if response.status_code == 200:
+            return response.json()[:5]  # Return only the latest 5 releases
+    except Exception as e:
+        app.logger.error(f"GitHub API Error: {e}")
+    return []
+
 #---------------- Template Filters ----------------
 @app.template_filter('markdown')
 def render_markdown(text):
@@ -207,6 +219,7 @@ def update_preferences():
     session['auto_delete'] = 'auto_delete' in request.form
     session['confirm_delete'] = 'confirm_delete' in request.form
     session['sort_by'] = request.form.get('sort_by', 'newest')
+    session['theme'] = request.form.get('theme', 'system')
     flash('Preferences updated (Session saved).', 'success')
     return redirect(url_for('account'))
 
@@ -417,17 +430,8 @@ def todo():
                          toggle_cat=toggle_category_string)
 
 @app.route('/version')
-@cache.cached(timeout=3600) # This route is cached for 1 hour
 def version():
-    url = "https://api.github.com/repos/ermichele/toplanblock/releases"
-    releases = []
-    try:
-        response = requests.get(url, headers={"User-Agent": "ToPlanBlock-App"}, timeout=10)
-        if response.status_code == 200:
-            releases = response.json()[:5]
-    except Exception as e:
-        app.logger.error(f"GitHub API Error: {e}")
-
+    releases = github_api_request()
     return render_template('version.html', releases=releases)
 
 @app.route('/health')

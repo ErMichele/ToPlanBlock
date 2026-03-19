@@ -84,7 +84,7 @@
         <div class="d-flex flex-column">
           <div class="d-flex gap-1 mb-1">
             {% for cat in t.categories %}
-            <span class="badge bg-light text-dark border" style="font-size: 0.65rem;">{{ cat.name }}</span>
+            <span class="badge badge border text-body-secondary" style="font-size: 0.65rem;">{{ cat.name }}</span>
             {% endfor %}
           </div>
           <span class="{% if t.completed %}text-decoration-line-through text-muted{% endif %} fw-medium">
@@ -118,7 +118,7 @@
         </div>
       </li>
       {% else %}
-      <li class="list-group-item text-center text-muted py-5 bg-white border-0">
+      <li class="list-group-item text-center text-muted py-5 border-0">
         <p class="mb-0">No tasks found.</p>
       </li>
       {% endfor %}
@@ -163,7 +163,7 @@
       <div class="modal-body p-4">
         Are you sure you want to permanently delete this task? This action cannot be undone.
       </div>
-      <div class="modal-footer bg-light">
+      <div class="modal-footer bg-body-tertiary">
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
         <form id="confirmDeleteForm" method="POST">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />

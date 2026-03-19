@@ -12,37 +12,45 @@
             <hr class="mb-5">
 
             {% if releases %}
-            {% for release in releases %}
-            <div class="card mb-5 border-0 shadow-sm">
-                <div class="card-header bg-white border-bottom-0 pt-4 px-4">
-                    <div class="d-flex justify-content-between align-items-start">
-                        <div>
-                            <h3 class="h4 mb-1 text-primary">{{ release.name or release.tag_name }}</h3>
-                            <p class="text-muted small mb-0">
-                                Published on {{ release.published_at.split('T')[0] }}
-                            </p>
+                {% for release in releases %}
+                <div class="card mb-5 border-0 shadow-sm">
+                    <div class="card-header border-bottom-0 pt-4 px-4 bg-transparent">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <h3 class="h4 mb-1 text-primary">{{ release.name or release.tag_name }}</h3>
+                                <p class="text-muted small mb-0">
+                                    Published on {{ release.published_at.split('T')[0] }}
+                                </p>
+                            </div>
+                            <span class="badge rounded-pill bg-body-tertiary text-body-secondary border">{{ release.tag_name }}</span>
                         </div>
-                        <span class="badge rounded-pill bg-light text-dark border">{{ release.tag_name }}</span>
                     </div>
-                </div>
-                <div class="card-body px-4 pb-4">
                     <div class="card-body px-4 pb-4">
                         <div class="markdown-content">
                             {{ release.body | markdown | safe }}
                         </div>
-                    </div>
-                    <div class="mt-4 pt-3 border-top">
-                        <a href="{{ release.html_url }}" target="_blank" class="btn btn-sm btn-outline-secondary">
-                            View Release on GitHub
-                        </a>
+                        <div class="mt-4 pt-3 border-top">
+                            <a href="{{ release.html_url }}" target="_blank" class="btn btn-sm btn-outline-secondary">
+                                View Release on GitHub
+                            </a>
+                        </div>
                     </div>
                 </div>
-            </div>
-            {% endfor %}
+                {% endfor %}
+
+                <div class="text-center mt-5 mb-4">
+                    <p class="text-muted">
+                        Looking for older versions or technical details? <br>
+                        <a href="https://github.com/ermichele/ToPlanBlock/releases" target="_blank" class="link-primary text-decoration-none">
+                            Browse the full archive on GitHub &rarr;
+                        </a>
+                    </p>
+                </div>
+
             {% else %}
-            <div class="text-center py-5">
-                <p class="text-muted">No release data available at the moment.</p>
-            </div>
+                <div class="text-center py-5">
+                    <p class="text-muted">No release data available at the moment.</p>
+                </div>
             {% endif %}
         </div>
     </div>
