@@ -170,6 +170,13 @@ def add_security_headers(response):
     response.headers['X-Frame-Options'] = 'SAMEORIGIN'
     response.headers['X-Content-Type-Options'] = 'nosniff'
     response.headers['X-XSS-Protection'] = '1; mode=block'
+    response.headers['Content-Security-Policy'] = (
+        "default-src 'self'; "
+        "script-src 'self' https://cdn.jsdelivr.net; "
+        "style-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; "
+        "img-src 'self' data: https://res.cloudinary.com; "
+        "connect-src 'self' https://api.github.com;"
+    )
     
     if IS_PROD:
         response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
