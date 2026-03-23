@@ -4,8 +4,8 @@ import cloudinary
 import cloudinary.uploader
 import requests
 import markdown
-from datetime import datetime
-from pathlib import Path
+from datetime import datetime, timedelta
+from urllib.parse import urlparse
 from dotenv import load_dotenv
 from flask import Flask, render_template, redirect, url_for, request, flash, session, current_app
 from flask_sqlalchemy import SQLAlchemy
@@ -18,7 +18,6 @@ from flask_limiter.util import get_remote_address
 from flask_caching import Cache
 from sqlalchemy.orm import joinedload
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy import or_
 
 load_dotenv()
 app = Flask(__name__)
@@ -37,6 +36,11 @@ else:
 app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024  # 5MB
+app.config['SECRET_KEY'] = os.getenv("SECRET_KEY", "secure-fallback-key-for-local-dev")
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SECURE'] = IS_PROD
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 
 cloudinary.config(
     cloud_name = os.getenv('CLOUDINARY_CLOUD_NAME'),
@@ -160,6 +164,25 @@ def github_api_request():
         app.logger.error(f"GitHub API Error: {e}")
     return []
 
+#---------------- Security Headers ----------------
+@app.after_request
+def add_security_headers(response):
+    response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-XSS-Protection'] = '1; mode=block'
+    response.headers['Content-Security-Policy'] = (
+        "default-src 'self'; "
+        "script-src 'self' https://cdn.jsdelivr.net; "
+        "style-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; "
+        "img-src 'self' data: https://res.cloudinary.com; "
+        "connect-src 'self' https://api.github.com;"
+    )
+    
+    if IS_PROD:
+        response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+        
+    return response
+
 #---------------- Template Filters ----------------
 @app.template_filter('markdown')
 def render_markdown(text):
@@ -174,7 +197,7 @@ def render_markdown(text):
     return markdown.markdown(text, extensions=[
         'extra', 
         'sane_lists', 
-        'markdown_checklist.extension'
+        'markdown_checklist.extension',
     ])
 # ---------------- Post Routes ----------------
 @app.post('/todo/<int:todo_id>/toggle')
@@ -226,23 +249,36 @@ def update_preferences():
 @app.post('/account/delete')
 @login_required
 def delete_account():
+    user_id = current_user.id
     if current_user.profile_pic_url:
         delete_old_image(current_user.profile_pic_url)
-
-    user_todos = Todo.query.filter_by(user_id=current_user.id).all()
+    user_todos = Todo.query.filter_by(user_id=user_id).all()
     affected_cats = set()
     for t in user_todos:
         for cat in t.categories:
-            affected_cats.add(cat)
+            affected_cats.add(cat.id)
 
     db.session.delete(current_user)
     db.session.commit()
 
-    for cat in affected_cats:
-        c = db.session.get(Category, cat.id)
+    logout_user()
+    session.clear()
+
+    for cat_id in affected_cats:
+        c = db.session.get(Category, cat_id)
         if c and not c.todos:
             db.session.delete(c)
     db.session.commit()
+    
+    flash('Account and all associated data have been permanently deleted.', 'info')
+    return redirect(url_for('landing'))
+
+@app.post('/logout')
+@login_required
+def logout():
+    logout_user()
+    session.clear()
+    flash('Logged out.', 'info')
     return redirect(url_for('landing'))
 
 # ---------------- Error Handlers ----------------
@@ -280,15 +316,18 @@ def register():
         return redirect(url_for('todo'))
     
     if request.method == 'POST':
-        username = request.form['username'].strip()
-        email = request.form['email'].strip().lower()
-        raw_pw = request.form['password']
+        username = request.form.get('username', '').strip()
+        email = request.form.get('email', '').strip().lower()
+        raw_pw = request.form.get('password', '')
+
         if not username or not email or not raw_pw:
             flash('All fields are required.', 'danger')
             return redirect(url_for('register'))
+
         if len(raw_pw) < 8:
             flash('Password is too short (min 8 chars).', 'danger')
             return redirect(url_for('register'))
+
         hashed_pw = bcrypt.generate_password_hash(raw_pw).decode('utf-8')
         user = User(username=username, email=email, password=hashed_pw)
         db.session.add(user)
@@ -309,29 +348,29 @@ def login():
         return redirect(url_for('todo'))
     
     if request.method == 'POST':
-        email = request.form['email'].strip().lower()
-        pw = request.form['password']
+        email = request.form.get('email', '').strip().lower()
+        pw = request.form.get('password', '')
         user = User.query.filter_by(email=email).first()
         if user and bcrypt.check_password_hash(user.password, pw):
+            session.clear()
             login_user(user)
+            next_page = request.args.get('next')
+            if not next_page or urlparse(next_page).netloc != '':
+                next_page = url_for('todo')
+                
             flash('Logged in successfully.', 'success')
-            return redirect(request.args.get('next') or url_for('todo'))
+            return redirect(next_page)
+        
         flash('Invalid credentials.', 'danger')
     return render_template('login.html')
 
-@app.route('/logout')
-@login_required
-def logout():
-    logout_user()
-    flash('Logged out.', 'info')
-    return redirect(url_for('landing'))
-
 @app.route('/account', methods=['GET','POST'])
 @login_required
+@limiter.limit("10 per minute")
 def account():
     if request.method == 'POST':
         # Security check
-        current_pw = request.form.get('current_password') or request.form.get('old_password')
+        current_pw = request.form.get('current_password')
         if not current_pw or not bcrypt.check_password_hash(current_user.password, current_pw):
             flash('Incorrect current password.', 'danger')
             return redirect(url_for('account'))
@@ -349,7 +388,6 @@ def account():
                 old_url = current_user.profile_pic_url
                 
                 if IS_PROD:
-                    # Cloudinary Path
                     upload_result = cloudinary.uploader.upload(
                         file, folder="profile_pics/",
                         public_id=f"user_{current_user.id}_{uuid.uuid4().hex[:5]}",
@@ -357,7 +395,6 @@ def account():
                     )
                     current_user.profile_pic_url = upload_result.get('secure_url')
                 else:
-                    # Local Path
                     filename = f"user_{current_user.id}_{uuid.uuid4().hex[:5]}.webp"
                     filepath = os.path.join(current_app.root_path, 'static/uploads/profile_pics', filename)
                     file.save(filepath)
@@ -441,4 +478,4 @@ def health_check():
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
-    app.run(host='0.0.0.0', port=port)
+    app.run(host='0.0.0.0', port=port, debug=not IS_PROD)

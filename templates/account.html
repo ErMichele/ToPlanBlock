@@ -33,7 +33,7 @@
               </div>
               <div class="col">
                 <label class="form-label fw-semibold">Update Profile Picture</label>
-                <input class="form-control form-control-sm" type="file" name="picture" accept="image/*">
+                <input class="form-control form-control-sm" type="file" name="picture" accept=".jpg,.jpeg,.png,.webp">
                 <div class="form-text">JPG, PNG or WEBP. Managed by Cloudinary.</div>
               </div>
             </div>
@@ -57,7 +57,7 @@
           <div class="card-body p-4">
             <div class="mb-3">
               <label class="form-label fw-semibold">Current Password</label>
-              <input class="form-control" type="password" name="current_password" placeholder="Required for any changes"
+              <input class="form-control" type="password" name="current_password" autocomplete="current-password" placeholder="Required for any changes"
                 required>
               <div class="form-text text-body-secondary italic">Confirm your current password to save changes.</div>
             </div>
@@ -66,7 +66,7 @@
 
             <div class="mb-3">
               <label class="form-label fw-semibold">New Password (Optional)</label>
-              <input class="form-control" type="password" name="new_password" minlength="8"
+              <input class="form-control" type="password" name="new_password" minlength="8" autocomplete="new-password"
                 placeholder="Leave blank to keep current">
               <div class="form-text">Must be at least 8 characters long.</div>
             </div>

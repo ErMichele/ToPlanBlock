@@ -8,11 +8,11 @@
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
       <div class="mb-3">
         <label class="form-label">Email</label>
-        <input class="form-control" type="email" name="email" required>
+        <input class="form-control" type="email" name="email" autocomplete="email" required>
       </div>
       <div class="mb-3">
         <label class="form-label">Password</label>
-        <input class="form-control" type="password" name="password" required>
+        <input class="form-control" type="password" name="password" autocomplete="current-password" required>
       </div>
       <button class="btn btn-primary">Login</button>
     </form>
