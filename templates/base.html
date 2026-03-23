@@ -10,7 +10,7 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css')}}">
 
   <script>
-    (function() {
+    (function () {
       const themePref = "{{ session.get('theme', 'system') }}";
       const setTheme = (theme) => {
         if (theme === 'system') {
@@ -35,7 +35,12 @@
         {% if current_user.is_authenticated %}
         <a href="{{ url_for('todo') }}" class="btn btn-outline-secondary me-2">Tasks</a>
         <a href="{{ url_for('account') }}" class="btn btn-outline-secondary me-2">Account</a>
-        <a href="{{ url_for('logout') }}" class="btn btn-danger">Logout</a>
+        <form action="{{ url_for('logout') }}" method="POST" class="d-inline">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" class="btn btn-danger" style="display: inline; cursor: pointer;">
+            Logout
+          </button>
+        </form>
         {% else %}
         <a href="{{ url_for('login') }}" class="btn btn-outline-secondary me-2">Login</a>
         <a href="{{ url_for('register') }}" class="btn btn-success">Register</a>
