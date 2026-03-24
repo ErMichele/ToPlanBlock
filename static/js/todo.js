@@ -1,13 +1,10 @@
-function prepareDelete(url) {
-    document.getElementById('confirmDeleteForm').action = url;
-}
-
 document.addEventListener('DOMContentLoaded', function () {
     const todoForm = document.getElementById('todo-form');
     const tagContainer = document.getElementById('tag-container');
     const tagInput = document.getElementById('tag-input');
     const hiddenInput = document.getElementById('categories-hidden');
     const suggestions = document.getElementById('suggestions');
+    const deleteModal = document.getElementById('deleteModal');
 
     let tags = [];
 
@@ -94,4 +91,15 @@ document.addEventListener('DOMContentLoaded', function () {
             suggestions.style.display = 'none';
         }
     });
+
+    if (deleteModal) {
+        deleteModal.addEventListener('show.bs.modal', function (event) {
+            const button = event.relatedTarget; 
+            const url = button.getAttribute('data-url');
+            const form = document.getElementById('confirmDeleteForm');
+            if (form && url) {
+                form.action = url;
+            }
+        });
+    }
 });

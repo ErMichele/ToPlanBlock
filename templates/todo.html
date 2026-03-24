@@ -105,7 +105,7 @@
           {% if session.get('confirm_delete', True) %}
           <button class="btn btn-outline-danger btn-sm"
             data-url="{{ url_for('delete', todo_id=t.id, category=selected_category, page=pagination.page) }}"
-            data-bs-toggle="modal" data-bs-target="#deleteModal" onclick="prepareDelete(this.dataset.url)">
+            data-bs-toggle="modal" data-bs-target="#deleteModal">
             Delete
           </button>
 
