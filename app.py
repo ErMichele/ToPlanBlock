@@ -235,6 +235,28 @@ def delete(todo_id):
     return redirect(url_for('todo', 
                             category=request.args.get('category', ''), 
                             page=request.args.get('page', 1)))
+    
+@app.post('/todo/<int:todo_id>/edit')
+@login_required
+def edit(todo_id):
+    t = Todo.query.filter_by(id=todo_id, user_id=current_user.id).first_or_404()
+    task_text = request.form.get('task', '').strip()
+    cat_list = [c.strip().upper() for c in request.form.get('categories_csv', '').split(',') if c.strip()]
+    
+    if task_text:
+        t.task = task_text
+        t.categories = [] 
+        for clean_name in cat_list:
+            cat = Category.query.filter_by(name=clean_name).first() or Category(name=clean_name)
+            if cat not in t.categories:
+                t.categories.append(cat)
+        
+        db.session.commit()
+        flash('Task updated successfully!', 'success')
+        
+    return redirect(url_for('todo', 
+                            category=request.args.get('category', ''), 
+                            page=request.args.get('page', 1)))
 
 @app.post('/update_preferences')
 @login_required
