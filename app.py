@@ -199,6 +199,7 @@ def render_markdown(text):
         'sane_lists', 
         'markdown_checklist.extension',
     ])
+    
 # ---------------- Post Routes ----------------
 @app.post('/todo/<int:todo_id>/toggle')
 @login_required
