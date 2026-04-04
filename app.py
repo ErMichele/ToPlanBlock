@@ -258,7 +258,54 @@ def edit(todo_id):
     return redirect(url_for('todo', 
                             category=request.args.get('category', ''), 
                             page=request.args.get('page', 1)))
-
+    
+@app.post('/todo/bulk')
+@login_required
+def bulk_action():
+    todo_ids = request.form.getlist('todo_ids')
+    action = request.form.get('action')
+    
+    if not todo_ids:
+        flash('No tasks were selected.', 'warning')
+        return redirect(url_for('todo', category=request.args.get('category', ''), page=request.args.get('page', 1)))
+    todos = Todo.query.filter(Todo.id.in_(todo_ids), Todo.user_id == current_user.id).all()
+    if action == 'done':
+        auto_delete = session.get('auto_delete')
+        deleted_count = 0
+        affected_cats = set()
+        
+        for t in todos:
+            t.completed = True
+            if auto_delete:
+                affected_cats.update([cat for cat in t.categories])
+                db.session.delete(t)
+                deleted_count += 1
+                
+        db.session.commit()
+        if auto_delete and deleted_count > 0:
+            for cat in affected_cats:
+                if not cat.todos:
+                    db.session.delete(cat)
+            db.session.commit()
+            flash(f'Marked {len(todos)} tasks as done and auto-deleted.', 'info')
+        else:
+            flash(f'Marked {len(todos)} tasks as done.', 'success')
+            
+    elif action == 'delete':
+        affected_cats = set()
+        for t in todos:
+            affected_cats.update([cat for cat in t.categories])
+            db.session.delete(t)
+        db.session.commit()
+        for cat in affected_cats:
+            if not cat.todos:
+                db.session.delete(cat)
+        db.session.commit()
+        
+        flash(f'Successfully deleted {len(todos)} tasks.', 'success')
+        
+    return redirect(url_for('todo', category=request.args.get('category', ''), page=request.args.get('page', 1)))    
+    
 @app.post('/update_preferences')
 @login_required
 def update_preferences():
@@ -464,13 +511,27 @@ def todo():
 
     page = request.args.get('page', 1, type=int)
     selected_category_input = request.args.get('category', '')
+    search_query = request.args.get('search', '').strip()
+    status_filter = request.args.get('status', 'all').lower()
     q = Todo.query.options(joinedload(Todo.categories)).filter_by(user_id=current_user.id)
     
+    # Keyword Search (Case-insensitive)
+    if search_query:
+        q = q.filter(Todo.task.ilike(f"%{search_query}%"))
+
+    # Category Filter
     if selected_category_input:
         cat_filter_list = [c.strip().upper() for c in selected_category_input.split(',') if c.strip()]
         for cat_name in cat_filter_list:
             q = q.filter(Todo.categories.any(Category.name == cat_name))
 
+    # Status Filtering
+    if status_filter == 'active':
+        q = q.filter(Todo.completed == False)
+    elif status_filter == 'completed':
+        q = q.filter(Todo.completed == True)
+
+    # Sorting
     sort_pref = session.get('sort_by', 'newest')
     if sort_pref == 'alpha':
         q = q.order_by(Todo.completed.asc(), Todo.task.asc())
@@ -480,6 +541,13 @@ def todo():
         q = q.order_by(Todo.completed.asc(), Todo.id.desc())
 
     pagination = q.distinct().paginate(page=page, per_page=10, error_out=False)
+    
+    # Calculate progress bar percentage for tasks currently on page
+    page_items = pagination.items
+    total_on_page = len(page_items)
+    completed_on_page = sum(1 for t in page_items if t.completed)
+    progress_percent = int((completed_on_page / total_on_page * 100)) if total_on_page > 0 else 0
+
     user_cat_ids = db.session.query(Category.id).join(Todo.categories).filter(Todo.user_id == current_user.id).distinct()
     categories = Category.query.filter(Category.id.in_(user_cat_ids)).order_by(Category.name).all()
 
@@ -487,6 +555,9 @@ def todo():
                          pagination=pagination,
                          categories=categories, 
                          selected_category=selected_category_input, 
+                         search_query=search_query,
+                         status_filter=status_filter,
+                         progress_percent=progress_percent,
                          toggle_cat=toggle_category_string)
 
 @app.route('/version')

@@ -138,4 +138,31 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
     }
+
+    const selectAll = document.getElementById('selectAll');
+    const checkboxes = document.querySelectorAll('.todo-checkbox');
+    const bulkActionsBtn = document.getElementById('bulkActionsBtn');
+
+    if (selectAll) {
+        selectAll.addEventListener('change', function() {
+            checkboxes.forEach(cb => cb.checked = selectAll.checked);
+            updateBulkButton();
+        });
+    }
+
+    checkboxes.forEach(cb => {
+        cb.addEventListener('change', function() {
+            if (selectAll) {
+                selectAll.checked = [...checkboxes].every(c => c.checked);
+            }
+            updateBulkButton();
+        });
+    });
+
+    function updateBulkButton() {
+        if (bulkActionsBtn) {
+            const anyChecked = [...checkboxes].some(c => c.checked);
+            bulkActionsBtn.disabled = !anyChecked;
+        }
+    }
 });

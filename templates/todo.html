@@ -2,13 +2,18 @@
 {% block title %}ToPlanBlock - My ToDo{% endblock %}
 {% block content %}
 
+<form id="bulk-form" method="POST"
+  action="{{ url_for('bulk_action', category=selected_category, page=pagination.page, search=search_query, status=status_filter) }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+</form>
+
 <div class="row">
-  <!-- Left Column: Add Task & Filters -->
   <div class="col-lg-4">
     <div class="card shadow-sm border-0 mb-4">
       <div class="card-body">
         <h4 class="card-title mb-4">Add Task</h4>
-        <form method="POST" id="todo-form" action="{{ url_for('todo', category=selected_category, page=pagination.page) }}">
+        <form method="POST" id="todo-form"
+          action="{{ url_for('todo', category=selected_category, page=pagination.page, search=search_query, status=status_filter) }}">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
 
           <div class="mb-3">
@@ -16,16 +21,13 @@
             <input class="form-control" type="text" name="task" placeholder="What needs to be done?" required>
           </div>
 
-          <!-- Reusable Tag Wrapper for Creation -->
           <div class="mb-3 position-relative tag-input-wrapper">
             <label class="form-label fw-bold">Categories</label>
             <div class="tag-input-container">
               <input type="text" class="tag-input-field" placeholder="Add category..." autocomplete="off">
             </div>
-            <!-- Hidden field for Python -->
             <input type="hidden" name="categories_csv" class="tags-hidden-input">
 
-            <!-- Autocomplete Suggestions -->
             <div class="suggestions-list shadow-sm rounded-bottom">
               {% for c in categories %}
               <div class="suggestion-item" data-value="{{ c.name }}">{{ c.name }}</div>
@@ -39,63 +41,171 @@
       </div>
     </div>
 
-    <!-- Category Filters -->
     <h5 class="mt-4">Filter by Category</h5>
     <div class="d-flex flex-wrap gap-2 mb-2">
       {% set active_list = selected_category.upper().split(',') if selected_category else [] %}
       {% for c in categories %}
-        {% set new_filter = toggle_cat(selected_category, c.name) %}
-        <a href="{{ url_for('todo', category=new_filter) }}"
-          class="badge text-decoration-none p-2 {{ 'bg-primary' if c.name.upper() in active_list else 'bg-secondary' }}">
-          {{ c.name }}
-          {% if c.name.upper() in active_list %} <span class="ms-1">&times;</span> {% endif %}
-        </a>
+      {% set new_filter = toggle_cat(selected_category, c.name) %}
+      <a href="{{ url_for('todo', category=new_filter, search=search_query, status=status_filter) }}"
+        class="badge text-decoration-none p-2 {{ 'bg-primary' if c.name.upper() in active_list else 'bg-secondary' }}">
+        {{ c.name }}
+        {% if c.name.upper() in active_list %} <span class="ms-1">&times;</span> {% endif %}
+      </a>
       {% else %}
-        <small class="text-muted">No categories yet.</small>
+      <small class="text-muted">No categories yet.</small>
       {% endfor %}
     </div>
     {% if selected_category %}
-      <a href="{{ url_for('todo') }}" class="text-danger small text-decoration-none">Clear all filters</a>
+    <a href="{{ url_for('todo', search=search_query, status=status_filter) }}"
+      class="text-danger small text-decoration-none">Clear category filters</a>
     {% endif %}
   </div>
 
-  <!-- Right Column: Task List -->
   <div class="col-lg-8">
+
+    <div class="row g-2 mb-4">
+      <div class="col-md-7">
+        <form method="GET" action="{{ url_for('todo') }}" class="d-flex gap-2">
+          <input type="hidden" name="category" value="{{ selected_category }}">
+          <input type="hidden" name="status" value="{{ status_filter }}">
+          <input type="text" name="search" class="form-control" placeholder="Search tasks..."
+            value="{{ search_query }}">
+          <button type="submit" class="btn btn-primary">Search</button>
+        </form>
+      </div>
+      <div class="col-md-5">
+        <div class="btn-group w-100" role="group">
+          <a href="{{ url_for('todo', category=selected_category, status='all', search=search_query) }}"
+            class="btn btn-outline-primary {{ 'active' if status_filter == 'all' or not status_filter }}">All</a>
+          <a href="{{ url_for('todo', category=selected_category, status='active', search=search_query) }}"
+            class="btn btn-outline-primary {{ 'active' if status_filter == 'active' }}">Active</a>
+          <a href="{{ url_for('todo', category=selected_category, status='completed', search=search_query) }}"
+            class="btn btn-outline-primary {{ 'active' if status_filter == 'completed' }}">Done</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="mb-4">
+      <div class="d-flex justify-content-between small text-muted mb-1">
+        <span>Page Completion Progress</span>
+        <span>{{ progress_percent }}%</span>
+      </div>
+      <div class="progress" style="height: 10px;">
+        <div class="progress-bar progress-bar-striped bg-success" role="progressbar"
+          style="width: {{ progress_percent }}%;" aria-valuenow="{{ progress_percent }}" aria-valuemin="0"
+          aria-valuemax="100"></div>
+      </div>
+    </div>
+
     <div class="d-flex justify-content-between align-items-center mb-4">
-      <!-- Fixed comma display with spaces for aesthetic -->
       <h4>
         {% if selected_category %}
-          Filtered: <span class="text-primary">{{ selected_category.replace(',', ', ') }}</span>
+        Filtered: <span class="text-primary">{{ selected_category.replace(',', ', ') }}</span>
+        {% elif search_query %}
+        Search: <span class="text-primary">"{{ search_query }}"</span>
         {% else %}
-          Your Tasks
+        Your Tasks
         {% endif %}
       </h4>
-      
+
       {% if pagination.total > 0 %}
       <small class="text-muted">
-        Showing <strong>{{ (pagination.page - 1) * pagination.per_page + 1 }}</strong> to 
-        <strong>{{ (pagination.page - 1) * pagination.per_page + pagination.items|length }}</strong> of 
+        Showing <strong>{{ (pagination.page - 1) * pagination.per_page + 1 }}</strong> to
+        <strong>{{ (pagination.page - 1) * pagination.per_page + pagination.items|length }}</strong> of
         <strong>{{ pagination.total }}</strong>
       </small>
       {% endif %}
     </div>
 
+    {% if pagination.items %}
+    <li class="list-group-item d-flex justify-content-between align-items-center bg-body-secondary p-2">
+      <div class="form-check mb-0">
+        <input class="form-check-input" type="checkbox" id="selectAll">
+        <label class="form-check-label text-body small ms-1" for="selectAll">Select All</label>
+      </div>
+      <div class="dropdown">
+        <button class="btn btn-sm btn-secondary dropdown-toggle" type="button" id="bulkActionsBtn"
+          data-bs-toggle="dropdown" aria-expanded="false" disabled>
+          Bulk Actions
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end">
+          <li>
+            <button class="dropdown-item" type="submit" form="bulk-form"
+              onclick="document.getElementById('bulk-form-action').value='done';">
+              Mark Done
+            </button>
+          </li>
+          <li>
+            {% if session.get('confirm_delete', True) %}
+            <button class="dropdown-item text-danger" type="button" data-bs-toggle="modal"
+              data-bs-target="#bulkDeleteModal">
+              Delete Selected
+            </button>
+            {% else %}
+            <button class="dropdown-item text-danger" type="submit" form="bulk-form"
+              onclick="document.getElementById('bulk-form-action').value='delete';">
+              Delete Selected
+            </button>
+            {% endif %}
+          </li>
+        </ul>
+
+        {% if session.get('confirm_delete', True) %}
+        <div class="modal fade" id="bulkDeleteModal" tabindex="-1" aria-hidden="true">
+          <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+              <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">Confirm Bulk Deletion</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+              </div>
+              <div class="modal-body p-4">
+                Are you sure you want to permanently delete the selected tasks? This action cannot be undone.
+              </div>
+              <div class="modal-footer bg-body-tertiary">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" form="bulk-form" class="btn btn-danger"
+                  onclick="document.getElementById('bulk-form-action').value='delete';">
+                  Confirm Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        {% endif %}
+      </div>
+    </li>
+    {% endif %}
+
+    <form id="bulk-form" method="POST"
+      action="{{ url_for('bulk_action', category=selected_category, page=pagination.page) }}" style="display:none;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+      <input type="hidden" name="action" id="bulk-form-action" value="done">
+    </form>
+
     <ul class="list-group shadow-sm mb-4">
       {% for t in pagination.items %}
       <li class="list-group-item d-flex justify-content-between align-items-center py-3">
-        <div class="d-flex flex-column">
-          <div class="d-flex gap-1 mb-1">
-            {% for cat in t.categories %}
-            <span class="badge border text-body-secondary" style="font-size: 0.65rem;">{{ cat.name }}</span>
-            {% endfor %}
+        <div class="d-flex align-items-center gap-3">
+          <div class="form-check mb-0">
+            <input class="form-check-input todo-checkbox" type="checkbox" name="todo_ids" value="{{ t.id }}"
+              form="bulk-form">
           </div>
-          <span class="{% if t.completed %}text-decoration-line-through text-muted{% endif %} fw-medium">
-            {{ t.task }}
-          </span>
+
+          <div class="d-flex flex-column">
+            <div class="d-flex gap-1 mb-1">
+              {% for cat in t.categories %}
+              <span class="badge border text-body-secondary" style="font-size: 0.65rem;">{{ cat.name }}</span>
+              {% endfor %}
+            </div>
+            <span class="{% if t.completed %}text-decoration-line-through text-muted{% endif %} fw-medium">
+              {{ t.task }}
+            </span>
+          </div>
         </div>
 
         <div class="d-flex gap-2">
-          <form method="POST" action="{{ url_for('toggle', todo_id=t.id, category=selected_category, page=pagination.page) }}">
+          <form method="POST"
+            action="{{ url_for('toggle', todo_id=t.id, category=selected_category, page=pagination.page, search=search_query, status=status_filter) }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
             <button class="btn btn-sm {{ 'btn-success' if t.completed else 'btn-outline-primary' }}">
               {% if t.completed %}Done{% else %}Mark Done{% endif %}
@@ -104,12 +214,13 @@
 
           {% if session.get('confirm_delete', True) %}
           <button class="btn btn-outline-danger btn-sm"
-            data-url="{{ url_for('delete', todo_id=t.id, category=selected_category, page=pagination.page) }}"
+            data-url="{{ url_for('delete', todo_id=t.id, category=selected_category, page=pagination.page, search=search_query, status=status_filter) }}"
             data-bs-toggle="modal" data-bs-target="#deleteModal">
             Delete
           </button>
           {% else %}
-          <form method="POST" action="{{ url_for('delete', todo_id=t.id, category=selected_category, page=pagination.page) }}">
+          <form method="POST"
+            action="{{ url_for('delete', todo_id=t.id, category=selected_category, page=pagination.page, search=search_query, status=status_filter) }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
             <button class="btn btn-outline-danger btn-sm">Delete</button>
           </form>
@@ -121,7 +232,6 @@
         </div>
       </li>
 
-      <!-- EDIT MODAL - Now using the same TagInputManager logic -->
       <div class="modal fade" id="editModal{{ t.id }}" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
           <div class="modal-content border-0 shadow">
@@ -129,7 +239,8 @@
               <h5 class="modal-title">Edit Task</h5>
               <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <form method="POST" action="{{ url_for('edit', todo_id=t.id, category=selected_category, page=pagination.page) }}">
+            <form method="POST"
+              action="{{ url_for('edit', todo_id=t.id, category=selected_category, page=pagination.page, search=search_query, status=status_filter) }}">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
               <div class="modal-body p-4">
                 <div class="mb-3">
@@ -137,16 +248,14 @@
                   <input class="form-control" type="text" name="task" value="{{ t.task }}" required>
                 </div>
 
-                <!-- Reusable Tag Wrapper for Edit -->
                 <div class="mb-3 position-relative tag-input-wrapper">
                   <label class="form-label fw-bold">Categories</label>
                   <div class="tag-input-container">
                     <input type="text" class="tag-input-field" placeholder="Add category..." autocomplete="off">
                   </div>
-                  <!-- This hidden input is pre-populated with current categories -->
-                  <input type="hidden" name="categories_csv" class="tags-hidden-input" 
-                         value="{{ t.categories|map(attribute='name')|join(',') }}">
-                  
+                  <input type="hidden" name="categories_csv" class="tags-hidden-input"
+                    value="{{ t.categories|map(attribute='name')|join(',') }}">
+
                   <div class="suggestions-list shadow-sm rounded-bottom">
                     {% for c in categories %}
                     <div class="suggestion-item" data-value="{{ c.name }}">{{ c.name }}</div>
@@ -164,30 +273,33 @@
       </div>
 
       {% else %}
-      <li class="list-group-item text-center text-muted py-5 border-0 bg-transparent">
+      <li class="list-group-item text-center text-muted py-5">
         <p class="mb-0">No tasks found for the current selection.</p>
       </li>
       {% endfor %}
     </ul>
 
-    <!-- Pagination Controls -->
     {% if pagination.pages > 1 %}
     <nav aria-label="Page navigation">
       <ul class="pagination justify-content-center">
         <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
-          <a class="page-link" href="{{ url_for('todo', category=selected_category, page=pagination.prev_num) if pagination.has_prev else '#' }}">Previous</a>
+          <a class="page-link"
+            href="{{ url_for('todo', category=selected_category, page=pagination.prev_num, search=search_query, status=status_filter) if pagination.has_prev else '#' }}">Previous</a>
         </li>
         {% for page_num in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
-          {% if page_num %}
-            <li class="page-item {% if page_num == pagination.page %}active{% endif %}">
-              <a class="page-link" href="{{ url_for('todo', category=selected_category, page=page_num) }}">{{ page_num }}</a>
-            </li>
-          {% else %}
-            <li class="page-item disabled"><span class="page-link">...</span></li>
-          {% endif %}
+        {% if page_num %}
+        <li class="page-item {% if page_num == pagination.page %}active{% endif %}">
+          <a class="page-link"
+            href="{{ url_for('todo', category=selected_category, page=page_num, search=search_query, status=status_filter) }}">{{
+            page_num }}</a>
+        </li>
+        {% else %}
+        <li class="page-item disabled"><span class="page-link">...</span></li>
+        {% endif %}
         {% endfor %}
         <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
-          <a class="page-link" href="{{ url_for('todo', category=selected_category, page=pagination.next_num) if pagination.has_next else '#' }}">Next</a>
+          <a class="page-link"
+            href="{{ url_for('todo', category=selected_category, page=pagination.next_num, search=search_query, status=status_filter) if pagination.has_next else '#' }}">Next</a>
         </li>
       </ul>
     </nav>
