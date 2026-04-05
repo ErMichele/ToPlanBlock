@@ -69,7 +69,7 @@ body {
   opacity: 0.8;
 }
 
-#tag-input {
+.tag-input-field {
   border: none;
   outline: none;
   flex: 1;

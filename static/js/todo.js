@@ -1,97 +1,168 @@
-function prepareDelete(url) {
-    document.getElementById('confirmDeleteForm').action = url;
-}
+/**
+ * TagInputManager - A reusable class for managing interactive tag inputs
+ * Supports autocomplete, keyboard navigation, and hidden field synchronization.
+ */
+class TagInputManager {
+    constructor(container) {
+        this.container = container;
+        this.tagContainer = container.querySelector('.tag-input-container');
+        this.tagInput = container.querySelector('.tag-input-field');
+        this.hiddenInput = container.querySelector('.tags-hidden-input');
+        this.suggestions = container.querySelector('.suggestions-list');
+        
+        this.tags = this.hiddenInput.value 
+            ? this.hiddenInput.value.split(',').filter(t => t.trim() !== '').map(t => t.toUpperCase()) 
+            : [];
 
-document.addEventListener('DOMContentLoaded', function () {
-    const todoForm = document.getElementById('todo-form');
-    const tagContainer = document.getElementById('tag-container');
-    const tagInput = document.getElementById('tag-input');
-    const hiddenInput = document.getElementById('categories-hidden');
-    const suggestions = document.getElementById('suggestions');
-
-    let tags = [];
-
-    function updateHiddenInput() {
-        hiddenInput.value = tags.join(',');
+        this.init();
     }
 
-    function addTag(label) {
-        label = label.trim().toUpperCase();
-        if (label && !tags.includes(label)) {
-            tags.push(label);
+    init() {
+        // Render initial tags
+        this.renderTags();
+
+        // Add Tag on Enter or Comma
+        this.tagInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ',') {
+                e.preventDefault();
+                this.addTag(this.tagInput.value);
+            } else if (e.key === 'Backspace' && this.tagInput.value === '' && this.tags.length > 0) {
+                this.removeTag(this.tags[this.tags.length - 1]);
+            }
+        });
+
+        // Focus input when clicking the container
+        this.tagContainer.addEventListener('click', (e) => {
+            if (e.target.classList.contains('remove-tag')) {
+                this.removeTag(e.target.dataset.item);
+            } else {
+                this.tagInput.focus();
+            }
+        });
+
+        // Handle Autocomplete filtering
+        this.tagInput.addEventListener('input', () => {
+            const val = this.tagInput.value.toUpperCase();
+            const items = this.suggestions.querySelectorAll('.suggestion-item');
+            let count = 0;
+
+            items.forEach(item => {
+                const catName = item.dataset.value.toUpperCase();
+                if (val && catName.includes(val) && !this.tags.includes(catName)) {
+                    item.style.display = 'block';
+                    count++;
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+            this.suggestions.style.display = count > 0 ? 'block' : 'none';
+        });
+
+        // Select suggestion
+        this.suggestions.addEventListener('click', (e) => {
+            const item = e.target.closest('.suggestion-item');
+            if (item) {
+                this.addTag(item.dataset.value);
+                this.tagInput.focus();
+            }
+        });
+
+        // Close suggestions when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!this.container.contains(e.target)) {
+                this.suggestions.style.display = 'none';
+            }
+        });
+
+        // Ensure tags are added if user submits form while typing a tag
+        const form = this.container.closest('form');
+        if (form) {
+            form.addEventListener('submit', () => {
+                if (this.tagInput.value.trim() !== '') {
+                    this.addTag(this.tagInput.value);
+                }
+            });
+        }
+    }
+
+    updateHiddenInput() {
+        this.hiddenInput.value = this.tags.join(',');
+    }
+
+    renderTags() {
+        // Clear existing badges (but keep the input field)
+        const badges = this.tagContainer.querySelectorAll('.tag-badge');
+        badges.forEach(b => b.remove());
+
+        // Create new badges
+        this.tags.forEach(label => {
             const tagEl = document.createElement('div');
             tagEl.className = 'tag-badge';
             tagEl.innerHTML = `<span>${label}</span><span class="remove-tag" data-item="${label}">&times;</span>`;
-            tagContainer.insertBefore(tagEl, tagInput);
-            updateHiddenInput();
-        }
-        tagInput.value = '';
-        suggestions.style.display = 'none';
-    }
-
-    function removeTag(label) {
-        tags = tags.filter(t => t !== label);
-        tagContainer.querySelectorAll('.tag-badge').forEach(b => b.remove());
-        tags.forEach(t => {
-            const el = document.createElement('div');
-            el.className = 'tag-badge';
-            el.innerHTML = `<span>${t}</span><span class="remove-tag" data-item="${t}">&times;</span>`;
-            tagContainer.insertBefore(el, tagInput);
+            this.tagContainer.insertBefore(tagEl, this.tagInput);
         });
-        updateHiddenInput();
     }
 
-    todoForm.addEventListener('submit', (e) => {
-        if (tagInput.value.trim() !== '') {
-            addTag(tagInput.value);
+    addTag(label) {
+        label = label.trim().toUpperCase();
+        if (label && !this.tags.includes(label)) {
+            this.tags.push(label);
+            this.renderTags();
+            this.updateHiddenInput();
         }
-    });
+        this.tagInput.value = '';
+        this.suggestions.style.display = 'none';
+    }
 
-    tagInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' || e.key === ',') {
-            e.preventDefault();
-            addTag(tagInput.value);
-        } else if (e.key === 'Backspace' && tagInput.value === '' && tags.length > 0) {
-            removeTag(tags[tags.length - 1]);
-        }
-    });
+    removeTag(label) {
+        this.tags = this.tags.filter(t => t !== label);
+        this.renderTags();
+        this.updateHiddenInput();
+    }
+}
 
-    tagContainer.addEventListener('click', (e) => {
-        if (e.target.classList.contains('remove-tag')) {
-            removeTag(e.target.dataset.item);
-        } else {
-            tagInput.focus();
-        }
-    });
+// Initialize all tag inputs on the page
+document.addEventListener('DOMContentLoaded', function () {
+    const wrappers = document.querySelectorAll('.tag-input-wrapper');
+    wrappers.forEach(wrapper => new TagInputManager(wrapper));
 
-    tagInput.addEventListener('input', () => {
-        const val = tagInput.value.toUpperCase();
-        const items = suggestions.querySelectorAll('.suggestion-item');
-        let count = 0;
-
-        items.forEach(item => {
-            const catName = item.dataset.value.toUpperCase();
-            if (val && catName.includes(val) && !tags.includes(catName)) {
-                item.style.display = 'block';
-                count++;
-            } else {
-                item.style.display = 'none';
+    // Handle Delete Modal Logic
+    const deleteModal = document.getElementById('deleteModal');
+    if (deleteModal) {
+        deleteModal.addEventListener('show.bs.modal', function (event) {
+            const button = event.relatedTarget; 
+            const url = button.getAttribute('data-url');
+            const form = document.getElementById('confirmDeleteForm');
+            if (form && url) {
+                form.action = url;
             }
         });
-        suggestions.style.display = count > 0 ? 'block' : 'none';
+    }
+
+    const selectAll = document.getElementById('selectAll');
+    const checkboxes = document.querySelectorAll('.todo-checkbox');
+    const bulkActionsBtn = document.getElementById('bulkActionsBtn');
+
+    if (selectAll) {
+        selectAll.addEventListener('change', function() {
+            checkboxes.forEach(cb => cb.checked = selectAll.checked);
+            updateBulkButton();
+        });
+    }
+
+    checkboxes.forEach(cb => {
+        cb.addEventListener('change', function() {
+            if (selectAll) {
+                selectAll.checked = [...checkboxes].every(c => c.checked);
+            }
+            updateBulkButton();
+        });
     });
 
-    suggestions.addEventListener('click', (e) => {
-        const item = e.target.closest('.suggestion-item');
-        if (item) {
-            addTag(item.dataset.value);
-            tagInput.focus();
+    function updateBulkButton() {
+        if (bulkActionsBtn) {
+            const anyChecked = [...checkboxes].some(c => c.checked);
+            bulkActionsBtn.disabled = !anyChecked;
         }
-    });
-
-    document.addEventListener('click', (e) => {
-        if (!tagContainer.contains(e.target) && !suggestions.contains(e.target)) {
-            suggestions.style.display = 'none';
-        }
-    });
+    }
 });
