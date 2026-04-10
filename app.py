@@ -301,8 +301,9 @@ def bulk_action():
             if not cat.todos:
                 db.session.delete(cat)
         db.session.commit()
-        
         flash(f'Successfully deleted {len(todos)} tasks.', 'success')
+    else:
+        flash('Invalid action selected.', 'danger')
         
     return redirect(url_for('todo', category=request.args.get('category', ''), page=request.args.get('page', 1)))    
     
@@ -365,6 +366,11 @@ def internal_error(error):
 def request_entity_too_large(error):
     flash("The file is too large! Maximum allowed size is 5MB.", "danger")
     return redirect(url_for('account'))
+
+@app.errorhandler(429)
+def ratelimit_handler(error):
+    retry_after = error.description if hasattr(error, 'description') else "a few minutes"
+    return render_template('429.html', limit_info=retry_after), 429
 
 # ---------------- Routes ----------------
 @app.route('/')
