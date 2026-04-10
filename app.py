@@ -269,14 +269,15 @@ def bulk_action():
         flash('No tasks were selected.', 'warning')
         return redirect(url_for('todo', category=request.args.get('category', ''), page=request.args.get('page', 1)))
     todos = Todo.query.filter(Todo.id.in_(todo_ids), Todo.user_id == current_user.id).all()
-    if action == 'done':
+
+    if action == 'toggle':
         auto_delete = session.get('auto_delete')
         deleted_count = 0
         affected_cats = set()
         
         for t in todos:
-            t.completed = True
-            if auto_delete:
+            t.completed = not t.completed 
+            if auto_delete and t.completed:
                 affected_cats.update([cat for cat in t.categories])
                 db.session.delete(t)
                 deleted_count += 1
@@ -285,11 +286,12 @@ def bulk_action():
         if auto_delete and deleted_count > 0:
             for cat in affected_cats:
                 if not cat.todos:
+                    db.session.get(Category, cat.id)
                     db.session.delete(cat)
             db.session.commit()
-            flash(f'Marked {len(todos)} tasks as done and auto-deleted.', 'info')
+            flash(f'Toggled {len(todos)} tasks. {deleted_count} were auto-deleted.', 'info')
         else:
-            flash(f'Marked {len(todos)} tasks as done.', 'success')
+            flash(f'Successfully toggled {len(todos)} tasks.', 'success')
             
     elif action == 'delete':
         affected_cats = set()
