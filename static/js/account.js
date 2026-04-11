@@ -25,7 +25,6 @@ document.addEventListener('DOMContentLoaded', function() {
     window.addEventListener('beforeunload', (e) => {
         if (isDirty()) {
             e.preventDefault();
-            e.returnValue = ''; 
         }
     });
 

@@ -100,8 +100,8 @@
           <div class="mb-4">
             <label class="form-label fw-bold">Site Theme</label>
             <select name="theme" class="form-select pref-auto-save">
-              <option value="light" {% if session.get('theme')=='light' %}selected{% endif %}>Light Mode</option>
               <option value="dark" {% if session.get('theme')=='dark' %}selected{% endif %}>Dark Mode</option>
+              <option value="light" {% if session.get('theme')=='light' %}selected{% endif %}>Light Mode</option>
               <option value="system" {% if session.get('theme')=='system' %}selected{% endif %}>System Default</option>
             </select>
           </div>

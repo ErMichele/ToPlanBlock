@@ -4,6 +4,7 @@ import cloudinary
 import cloudinary.uploader
 import requests
 import markdown
+import bleach
 import secrets
 from datetime import datetime, timedelta
 from urllib.parse import urlparse
@@ -195,17 +196,26 @@ def add_security_headers(response):
 def render_markdown(text):
     if not text:
         return ""
-    
     # Extensions explained:
+    # 'fenced_code': Allows ``` code blocks
+    # 'tables': Enables table syntax support
     # 'extra': Tables, footnotes, etc.
     # 'sane_lists': Allows nesting with 2 spaces instead of a strict 4.
     # 'markdown_checklist.extension': Enables [x] and [ ] rendering.
+    html_content = markdown.markdown(text, extensions=['fenced_code', 'tables', 'extra',  'sane_lists', 'markdown_checklist.extension'])
+    allowed_tags = [
+        'p', 'br', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 
+        'strong', 'em', 'u', 'ul', 'ol', 'li', 'code', 'pre',
+        'blockquote', 'hr', 'table', 'thead', 'tbody', 'tr', 'th', 'td'
+    ]
+    allowed_attrs = {
+        '*': ['class'],
+        'a': ['href', 'title', 'target'],
+    }
     
-    return markdown.markdown(text, extensions=[
-        'extra', 
-        'sane_lists', 
-        'markdown_checklist.extension',
-    ])
+    clean_html = bleach.clean(html_content, tags=allowed_tags, attributes=allowed_attrs)
+    return clean_html
+    
     
 # ---------------- Post Routes ----------------
 @app.post('/todo/<int:todo_id>/toggle')
