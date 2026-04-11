@@ -1,8 +1,7 @@
 document.addEventListener('DOMContentLoaded', function() {
     const infoForm = document.getElementById('profileForm');
-    const prefsForm = document.getElementById('prefsForm');
     const unsavedModal = new bootstrap.Modal(document.getElementById('unsavedChangesModal'));
-    const unsavedList = document.getElementById('unsavedList');
+    const saveToast = new bootstrap.Toast(document.getElementById('saveToast'));
     let targetUrl = '';
     let skipCheck = false;
 
@@ -10,35 +9,70 @@ document.addEventListener('DOMContentLoaded', function() {
         const formData = new FormData(form);
         const state = {};
         for (let [key, value] of formData.entries()) {
-            if (key === 'current_password' || key === 'csrf_token') continue;
-            state[key] = (value instanceof File) ? value.name : value;
+            if (['current_password', 'csrf_token', 'picture'].includes(key)) continue;
+            state[key] = value;
         }
         return JSON.stringify(state);
     };
 
-    const initialInfo = getFormState(infoForm);
-    const initialPrefs = getFormState(prefsForm);
+    let initialInfo = getFormState(infoForm);
 
     const isDirty = () => {
         if (skipCheck) return false;
-        return {
-            info: getFormState(infoForm) !== initialInfo,
-            prefs: getFormState(prefsForm) !== initialPrefs
-        };
+        return getFormState(infoForm) !== initialInfo;
     };
+
+    window.addEventListener('beforeunload', (e) => {
+        if (isDirty()) {
+            e.preventDefault();
+            e.returnValue = ''; 
+        }
+    });
 
     document.querySelectorAll('a').forEach(link => {
         link.addEventListener('click', function(e) {
-            if (this.getAttribute('href') === '#' || this.getAttribute('data-bs-toggle')) return;
+            if (this.getAttribute('href') === '#' || this.getAttribute('data-bs-toggle') || this.hostname !== window.location.hostname) return;
             
-            const status = isDirty();
-            if (status && (status.info || status.prefs)) {
+            if (isDirty()) {
                 e.preventDefault();
                 targetUrl = this.href;
-                unsavedList.innerHTML = '';
-                if (status.info) unsavedList.innerHTML += '<li>General information</li>';
-                if (status.prefs) unsavedList.innerHTML += '<li>Account preferences</li>';
                 unsavedModal.show();
+            }
+        });
+    });
+
+    document.querySelectorAll('.pref-auto-save').forEach(input => {
+        input.addEventListener('change', async () => {
+            const formData = new FormData();
+            document.querySelectorAll('.pref-auto-save').forEach(i => {
+                if (i.type === 'checkbox') {
+                    if (i.checked) formData.append(i.name, 'on');
+                } else {
+                    formData.append(i.name, i.value);
+                }
+            });
+            
+            formData.append('csrf_token', CSRF_TOKEN);
+
+            try {
+                const response = await fetch(PREF_URL, {
+                    method: 'POST',
+                    body: formData,
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                });
+
+                if (response.ok) {
+                    saveToast.show();
+                    const theme = formData.get('theme');
+                    if (theme) {
+                        const target = theme === 'system' 
+                            ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') 
+                            : theme;
+                        document.documentElement.setAttribute('data-bs-theme', target);
+                    }
+                }
+            } catch (err) {
+                console.error("Auto-save error:", err);
             }
         });
     });
@@ -48,16 +82,5 @@ document.addEventListener('DOMContentLoaded', function() {
         window.location.href = targetUrl;
     });
 
-    [infoForm, prefsForm].forEach(form => {
-        form.addEventListener('submit', () => {
-            skipCheck = true; 
-        });
-    });
-
-    window.addEventListener('beforeunload', (e) => {
-        const status = isDirty();
-        if (status && (status.info || status.prefs)) {
-            e.preventDefault();
-        }
-    });
+    infoForm.addEventListener('submit', () => { skipCheck = true; });
 });

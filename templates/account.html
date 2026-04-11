@@ -57,8 +57,8 @@
           <div class="card-body p-4">
             <div class="mb-3">
               <label class="form-label fw-semibold">Current Password</label>
-              <input class="form-control" type="password" name="current_password" autocomplete="current-password" placeholder="Required for any changes"
-                required>
+              <input class="form-control" type="password" name="current_password" autocomplete="current-password"
+                placeholder="Required for any changes" required>
               <div class="form-text text-body-secondary italic">Confirm your current password to save changes.</div>
             </div>
 
@@ -84,9 +84,9 @@
           <h6 class="text-uppercase small fw-bold opacity-75">Member Since</h6>
           <p class="h5 mb-0">
             {% if current_user.created_at %}
-            {{ current_user.created_at.strftime('%B %Y') }}
+              {{ current_user.created_at.strftime('%B %Y') }}
             {% else %}
-            March 2026
+              March 2026
             {% endif %}
           </p>
         </div>
@@ -96,50 +96,34 @@
         <div class="card-header bg-body-secondary py-3">
           <h5 class="card-title mb-0">Preferences</h5>
         </div>
-        <form id="prefsForm" method="POST" action="{{ url_for('update_preferences') }}">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-          <div class="card-body p-4 text-start">
-            <div class="mb-4">
-              <label class="form-label fw-bold">Site Theme</label>
-              <select name="theme" class="form-select">
-                <option value="light" {% if session.get('theme')=='light' %}selected{% endif %}>
-                  Light Mode
-                </option>
-                <option value="dark" {% if session.get('theme')=='dark' %}selected{% endif %}>
-                  Dark Mode
-                </option>
-                <option value="system" {% if session.get('theme')=='system' %}selected{% endif %}>
-                  System Default
-                </option>
-              </select>
-              <div class="form-text">Choose your preferred visual appearance.</div>
-            </div>
-            <div class="mb-4">
-              <label class="form-label fw-bold">Default Task Sorting</label>
-              <select name="sort_by" class="form-select">
-                <option value="newest" {% if session.get('sort_by')=='newest' %}selected{% endif %}>First New (Latest
-                  Created)</option>
-                <option value="oldest" {% if session.get('sort_by')=='oldest' %}selected{% endif %}>First Old (Oldest
-                  Created)</option>
-                <option value="alpha" {% if session.get('sort_by')=='alpha' %}selected{% endif %}>Alphabetical (A-Z)
-                </option>
-              </select>
-            </div>
-            <div class="form-check form-switch mb-3">
-              <input class="form-check-input" type="checkbox" name="auto_delete" id="autoDelete" {% if
-                session.get('auto_delete') %}checked{% endif %}>
-              <label class="form-check-label" for="autoDelete">Auto-delete tasks when marked "Done"</label>
-            </div>
-            <div class="form-check form-switch">
-              <input class="form-check-input" type="checkbox" name="confirm_delete" id="confirmDelete" {% if
-                session.get('confirm_delete', True) %}checked{% endif %}>
-              <label class="form-check-label" for="confirmDelete">Show confirmation before deleting</label>
-            </div>
+        <div class="card-body p-4 text-start" id="prefsContainer">
+          <div class="mb-4">
+            <label class="form-label fw-bold">Site Theme</label>
+            <select name="theme" class="form-select pref-auto-save">
+              <option value="light" {% if session.get('theme')=='light' %}selected{% endif %}>Light Mode</option>
+              <option value="dark" {% if session.get('theme')=='dark' %}selected{% endif %}>Dark Mode</option>
+              <option value="system" {% if session.get('theme')=='system' %}selected{% endif %}>System Default</option>
+            </select>
           </div>
-          <div class="card-footer bg-body-tertiary p-3">
-            <button type="submit" class="btn btn-sm btn-outline-primary w-100 save-btn">Save Preferences</button>
+          <div class="mb-4">
+            <label class="form-label fw-bold">Default Task Sorting</label>
+            <select name="sort_by" class="form-select pref-auto-save">
+              <option value="newest" {% if session.get('sort_by')=='newest' %}selected{% endif %}>First New (Latest Created)</option>
+              <option value="oldest" {% if session.get('sort_by')=='oldest' %}selected{% endif %}>First Old (Oldest Created)</option>
+              <option value="alpha" {% if session.get('sort_by')=='alpha' %}selected{% endif %}>Alphabetical (A-Z)</option>
+            </select>
           </div>
-        </form>
+          <div class="form-check form-switch mb-3">
+            <input class="form-check-input pref-auto-save" type="checkbox" name="auto_delete" id="autoDelete" 
+              {% if session.get('auto_delete') %}checked{% endif %}>
+            <label class="form-check-label" for="autoDelete">Auto-delete tasks when marked "Done"</label>
+          </div>
+          <div class="form-check form-switch">
+            <input class="form-check-input pref-auto-save" type="checkbox" name="confirm_delete" id="confirmDelete" 
+              {% if session.get('confirm_delete', True) %}checked{% endif %}>
+            <label class="form-check-label" for="confirmDelete">Show confirmation before deleting</label>
+          </div>
+        </div>
       </div>
 
       <div class="card border-danger shadow-sm mb-4">
@@ -147,17 +131,42 @@
           <h5 class="card-title mb-0">Danger Zone</h5>
         </div>
         <div class="card-body p-4">
-          <p class="small text-muted">Once you delete your account, there is no going back. All your tasks and
-            categories will be permanently removed.</p>
-          <form method="POST" action="{{ url_for('delete_account') }}">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-            <button type="submit" class="btn btn-outline-danger w-100"
-              onclick="return confirm('WARNING: Are you sure you want to delete your account? This action is permanent.')">
-              Delete My Account
-            </button>
-          </form>
+          <p class="small text-muted">Once you delete your account, there is no going back.</p>
+          <button type="button" class="btn btn-outline-danger w-100" data-bs-toggle="modal" data-bs-target="#deleteAccountModal">
+            Delete My Account
+          </button>
         </div>
       </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="deleteAccountModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header bg-danger text-white">
+        <h5 class="modal-title">Confirm Account Deletion</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p><strong>Warning:</strong> This action is permanent and cannot be undone. All your tasks will be deleted.</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <form method="POST" action="{{ url_for('delete_account') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+          <button type="submit" class="btn btn-danger">Permanently Delete Everything</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container position-fixed bottom-0 end-0 p-3">
+  <div id="saveToast" class="toast align-items-center text-white bg-success border-0" role="alert" aria-live="assertive" aria-atomic="true">
+    <div class="d-flex">
+      <div class="toast-body">Preferences saved automatically.</div>
+      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
     </div>
   </div>
 </div>
@@ -170,9 +179,7 @@
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body">
-        <p>You have unsaved changes in:</p>
-        <ul id="unsavedList" class="fw-bold">
-        </ul>
+        <p>You have unsaved changes in <strong>General Information & Security</strong>.</p>
         <p class="mb-0">If you leave now, these changes will be lost. Do you want to stay and save?</p>
       </div>
       <div class="modal-footer">
@@ -183,6 +190,10 @@
   </div>
 </div>
 
+<script nonce="{{ g.nonce }}">
+    const CSRF_TOKEN = "{{ csrf_token() }}";
+    const PREF_URL = "{{ url_for('update_preferences') }}";
+</script>
 <script src="{{ url_for('static', filename='js/account.js') }}"></script>
 
 {% endblock %}

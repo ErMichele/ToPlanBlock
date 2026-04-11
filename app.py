@@ -4,10 +4,11 @@ import cloudinary
 import cloudinary.uploader
 import requests
 import markdown
+import secrets
 from datetime import datetime, timedelta
 from urllib.parse import urlparse
 from dotenv import load_dotenv
-from flask import Flask, render_template, redirect, url_for, request, flash, session, current_app
+from flask import Flask, render_template, redirect, url_for, request, flash, session, current_app, g
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from flask_bcrypt import Bcrypt
@@ -165,17 +166,23 @@ def github_api_request():
     return []
 
 #---------------- Security Headers ----------------
+@app.before_request
+def set_nonce():
+    g.nonce = secrets.token_urlsafe(16)
+
 @app.after_request
 def add_security_headers(response):
     response.headers['X-Frame-Options'] = 'SAMEORIGIN'
     response.headers['X-Content-Type-Options'] = 'nosniff'
     response.headers['X-XSS-Protection'] = '1; mode=block'
+    
+    nonce = getattr(g, 'nonce', '')
     response.headers['Content-Security-Policy'] = (
-        "default-src 'self'; "
-        "script-src 'self' https://cdn.jsdelivr.net; "
-        "style-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; "
-        "img-src 'self' data: https://res.cloudinary.com; "
-        "connect-src 'self' https://api.github.com;"
+        f"default-src 'self'; "
+        f"script-src 'self' https://cdn.jsdelivr.net 'nonce-{nonce}'; "
+        f"style-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; "
+        f"img-src 'self' data: https://res.cloudinary.com; "
+        f"connect-src 'self' https://api.github.com https://cdn.jsdelivr.net; "
     )
     
     if IS_PROD:
@@ -316,7 +323,12 @@ def update_preferences():
     session['confirm_delete'] = 'confirm_delete' in request.form
     session['sort_by'] = request.form.get('sort_by', 'newest')
     session['theme'] = request.form.get('theme', 'system')
-    flash('Preferences updated (Session saved).', 'success')
+    
+    # Check if request is AJAX
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return {"status": "success"}, 200
+        
+    flash('Preferences updated.', 'success')
     return redirect(url_for('account'))
 
 @app.post('/account/delete')
@@ -453,11 +465,12 @@ def account():
             flash('Incorrect current password.', 'danger')
             return redirect(url_for('account'))
 
-        # Update Username/Email
         new_username = request.form.get('username', '').strip()
-        new_email = request.form.get('email', '').strip().lower()
-        if new_username and new_email:
+        if new_username and new_username != current_user.username:
             current_user.username = new_username
+
+        new_email = request.form.get('email', '').strip().lower()
+        if new_email and new_email != current_user.email:
             current_user.email = new_email
 
         if 'picture' in request.files:
