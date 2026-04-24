@@ -108,3 +108,8 @@ body {
   padding-left: 2rem !important;
   margin-bottom: 1rem;
 }
+
+.task-markdown-content p {
+    margin-bottom: 0;
+    display: inline; 
+}

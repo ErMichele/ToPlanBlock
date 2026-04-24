@@ -188,9 +188,9 @@
               <span class="badge border text-body-secondary" style="font-size: 0.65rem;">{{ cat.name }}</span>
               {% endfor %}
             </div>
-            <span class="{% if t.completed %}text-decoration-line-through text-muted{% endif %} fw-medium">
-              {{ t.task }}
-            </span>
+            <div class="task-markdown-content {% if t.completed %}text-decoration-line-through text-muted{% endif %} fw-medium">
+              {{ t.task | markdown }}
+            </div>
           </div>
         </div>
 
