@@ -1,15 +1,18 @@
+import io
 import os
 import uuid
 import cloudinary
 import cloudinary.uploader
+from markupsafe import Markup
 import requests
 import markdown
 import bleach
 import secrets
+import json
 from datetime import datetime, timedelta
 from urllib.parse import urlparse
 from dotenv import load_dotenv
-from flask import Flask, render_template, redirect, url_for, request, flash, session, current_app, g
+from flask import Flask, render_template, redirect, send_file, url_for, request, flash, session, current_app, g
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from flask_bcrypt import Bcrypt
@@ -196,25 +199,21 @@ def add_security_headers(response):
 def render_markdown(text):
     if not text:
         return ""
-    # Extensions explained:
-    # 'fenced_code': Allows ``` code blocks
-    # 'tables': Enables table syntax support
-    # 'extra': Tables, footnotes, etc.
-    # 'sane_lists': Allows nesting with 2 spaces instead of a strict 4.
-    # 'markdown_checklist.extension': Enables [x] and [ ] rendering.
-    html_content = markdown.markdown(text, extensions=['fenced_code', 'tables', 'extra',  'sane_lists', 'markdown_checklist.extension'])
+    html_content = markdown.markdown(text, extensions=[
+        'fenced_code', 'tables', 'extra', 'sane_lists', 'markdown_checklist.extension'
+    ])
     allowed_tags = [
         'p', 'br', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 
         'strong', 'em', 'u', 'ul', 'ol', 'li', 'code', 'pre',
-        'blockquote', 'hr', 'table', 'thead', 'tbody', 'tr', 'th', 'td'
+        'blockquote', 'hr', 'table', 'thead', 'tbody', 'tr', 'th', 'td', 'input'
     ]
     allowed_attrs = {
         '*': ['class'],
         'a': ['href', 'title', 'target'],
+        'input': ['type', 'disabled', 'checked']
     }
-    
     clean_html = bleach.clean(html_content, tags=allowed_tags, attributes=allowed_attrs)
-    return clean_html
+    return Markup(clean_html)
     
     
 # ---------------- Post Routes ----------------
@@ -595,6 +594,30 @@ def todo():
 def version():
     releases = github_api_request()
     return render_template('version.html', releases=releases)
+
+@app.route('/export/tasks')
+@login_required
+@limiter.limit("5 per hour")
+def export_tasks():
+    user_todos = Todo.query.filter_by(user_id=current_user.id).all()
+    export_data = []
+    for t in user_todos:
+        export_data.append({
+            "task": t.task,
+            "completed": t.completed,
+            "categories": [c.name for c in t.categories]
+        })
+    json_string = json.dumps(export_data, indent=4)
+    buffer = io.BytesIO()
+    buffer.write(json_string.encode('utf-8'))
+    buffer.seek(0)
+
+    return send_file(
+        buffer,
+        mimetype='application/json',
+        as_attachment=True,
+        download_name=f'{current_user.username}_tasks_{datetime.now().strftime("%Y%m%d")}.json'
+    )
 
 @app.route('/health')
 @limiter.exempt
