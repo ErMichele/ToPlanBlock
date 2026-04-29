@@ -121,23 +121,157 @@ class TagInputManager {
     }
 }
 
-// Initialize all tag inputs on the page
+class TodoAJAXManager {
+    constructor() {
+        this.overlay = document.getElementById('loading-overlay');
+        this.toastEl = document.getElementById('liveToast');
+        this.toastMessage = document.getElementById('toast-message');
+        this.bsToast = new bootstrap.Toast(this.toastEl);
+        this.initEventListeners();
+    }
+
+    showLoading(show) {
+        if (show) {
+            this.overlay.classList.remove('d-none');
+        } else {
+            this.overlay.classList.add('d-none');
+        }
+    }
+
+    showToast(message, category = 'success') {
+        this.toastMessage.textContent = message;
+        this.toastEl.classList.remove('bg-success', 'bg-danger', 'bg-warning');
+        
+        // Map Flask categories to Bootstrap colors
+        const bgColor = category === 'error' || category === 'danger' ? 'bg-danger' : 'bg-success';
+        this.toastEl.classList.add(bgColor);
+        
+        this.bsToast.show();
+    }
+
+    initEventListeners() {
+        document.addEventListener('submit', (e) => {
+            const form = e.target;
+            const isTodoForm = form.matches('#todo-form') || 
+                               form.closest('.modal-content') || 
+                               form.matches('#bulk-form') ||
+                               form.getAttribute('action')?.includes('/toggle') ||
+                               form.getAttribute('action')?.includes('/delete');
+
+            if (isTodoForm) {
+                e.preventDefault();
+                this.handleAction(form);
+            }
+        });
+    }
+
+    async handleAction(form) {
+        this.showLoading(true);
+        const formData = new FormData(form);
+        let url = form.getAttribute('action') || window.location.href;
+        
+        if (form.id === 'bulk-form') {
+            const checkedIds = document.querySelectorAll('.todo-checkbox:checked');
+            checkedIds.forEach(cb => formData.append('todo_ids', cb.value));
+            if (document.activeElement && document.activeElement.name === 'action') {
+                formData.append('action', document.activeElement.value);
+            }
+        }
+
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                body: formData,
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                // Close modals
+                const openModalEl = document.querySelector('.modal.show');
+                if (openModalEl) {
+                    bootstrap.Modal.getInstance(openModalEl)?.hide();
+                }
+                
+                await this.refreshUI();
+                this.showToast(data.message || "Action successful!"); 
+            } else {
+                this.showToast(data.message || "An error occurred.", "danger");
+            }
+        } catch (error) {
+            this.showToast("Network error. Please try again.", "danger");
+        } finally {
+            this.showLoading(false);
+        }
+    }
+
+    async refreshUI() {
+        const url = window.location.href;
+        try {
+            const response = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+            const html = await response.text();
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+
+            const oldBar = document.querySelector('.progress-bar');
+            const newBarContent = doc.querySelector('.progress-bar');
+            
+            let oldWidth = "0%";
+            if (oldBar) oldWidth = oldBar.style.width;
+
+            document.getElementById('sidebar-container').innerHTML = doc.getElementById('sidebar-container').innerHTML;
+            document.getElementById('tasks-container').innerHTML = doc.getElementById('tasks-container').innerHTML;
+
+            if (newBarContent) {
+                const updatedBar = document.querySelector('.progress-bar');
+                const targetWidth = updatedBar.style.width;
+                updatedBar.style.transition = 'none';
+                updatedBar.style.width = oldWidth;
+                updatedBar.offsetHeight; 
+                updatedBar.style.transition = '';
+                updatedBar.style.width = targetWidth;
+            }
+
+            document.querySelectorAll('.tag-input-wrapper').forEach(w => new TagInputManager(w));
+            this.rebindBulkLogic();
+
+        } catch (error) {
+            console.error("Refresh failed:", error);
+        }
+    }
+
+    rebindBulkLogic() {
+        const selectAll = document.getElementById('selectAll');
+        const checkboxes = document.querySelectorAll('.todo-checkbox');
+        const bulkActionsBtn = document.getElementById('bulkActionsBtn');
+
+        if (selectAll) {
+            selectAll.addEventListener('change', () => {
+                checkboxes.forEach(cb => cb.checked = selectAll.checked);
+                if (bulkActionsBtn) bulkActionsBtn.disabled = ![...checkboxes].some(c => c.checked);
+            });
+        }
+        checkboxes.forEach(cb => {
+            cb.addEventListener('change', () => {
+                if (selectAll) selectAll.checked = [...checkboxes].every(c => c.checked);
+                if (bulkActionsBtn) bulkActionsBtn.disabled = ![...checkboxes].some(c => c.checked);
+            });
+        });
+    }
+}
+
 document.addEventListener('DOMContentLoaded', function () {
     const wrappers = document.querySelectorAll('.tag-input-wrapper');
     wrappers.forEach(wrapper => new TagInputManager(wrapper));
 
-    // Handle Delete Modal Logic
-    const deleteModal = document.getElementById('deleteModal');
-    if (deleteModal) {
-        deleteModal.addEventListener('show.bs.modal', function (event) {
-            const button = event.relatedTarget; 
-            const url = button.getAttribute('data-url');
-            const form = document.getElementById('confirmDeleteForm');
-            if (form && url) {
-                form.action = url;
-            }
-        });
-    }
+    document.addEventListener('show.bs.modal', function (event) {
+        const button = event.relatedTarget; 
+        if (!button) return;
+        const url = button.getAttribute('data-url');
+        const form = document.getElementById('confirmDeleteForm');
+        if (form && url) form.setAttribute('action', url);
+    });
 
     const selectAll = document.getElementById('selectAll');
     const checkboxes = document.querySelectorAll('.todo-checkbox');
@@ -165,4 +299,6 @@ document.addEventListener('DOMContentLoaded', function () {
             bulkActionsBtn.disabled = !anyChecked;
         }
     }
+
+    new TodoAJAXManager();
 });
