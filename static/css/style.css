@@ -103,6 +103,31 @@ body {
   background-color: var(--bs-tertiary-bg);
 }
 
+.toast.bg-success { 
+  color: white; 
+}
+
+.toast.bg-danger { 
+  color: white; 
+}
+
+#loading-overlay {
+  transition: opacity 0.2s ease-in-out;
+}
+
+.progress-bar {
+    transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.toast.showing {
+    animation: slideInLeft 0.3s ease-out;
+}
+
+@keyframes slideInLeft {
+    from { transform: translateX(-100%); }
+    to { transform: translateX(0); }
+}
+
 .markdown-content ul,
 .markdown-content ol {
   padding-left: 2rem !important;

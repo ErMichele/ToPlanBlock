@@ -223,6 +223,7 @@ def toggle(todo_id):
     t = Todo.query.filter_by(id=todo_id, user_id=current_user.id).first_or_404()
     t.completed = not t.completed
     
+    msg = 'Task updated.'
     if session.get('auto_delete') and t.completed:
         cats = list(t.categories)
         db.session.delete(t)
@@ -231,12 +232,19 @@ def toggle(todo_id):
             if not cat.todos:
                 db.session.delete(cat)
         db.session.commit()
-        flash('Task completed and auto-deleted.', 'info')
+        msg = 'Task completed and auto-deleted.'
     else:
         db.session.commit()
+
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return {"status": "success", "message": msg}, 200
+        
+    flash(msg, 'info')
     return redirect(url_for('todo', 
                             category=request.args.get('category', ''), 
-                            page=request.args.get('page', 1)))
+                            page=request.args.get('page', 1),
+                            search=request.args.get('search', ''),
+                            status=request.args.get('status', 'all')))
 
 @app.post('/todo/<int:todo_id>/delete')
 @login_required
@@ -249,9 +257,15 @@ def delete(todo_id):
         if not cat.todos:
             db.session.delete(cat)
     db.session.commit()
+
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return {"status": "success", "message": "Task deleted."}, 200
+
     return redirect(url_for('todo', 
                             category=request.args.get('category', ''), 
-                            page=request.args.get('page', 1)))
+                            page=request.args.get('page', 1),
+                            search=request.args.get('search', ''),
+                            status=request.args.get('status', 'all')))
     
 @app.post('/todo/<int:todo_id>/edit')
 @login_required
@@ -267,13 +281,17 @@ def edit(todo_id):
             cat = Category.query.filter_by(name=clean_name).first() or Category(name=clean_name)
             if cat not in t.categories:
                 t.categories.append(cat)
-        
         db.session.commit()
-        flash('Task updated successfully!', 'success')
+
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return {"status": "success", "message": "Task updated."}, 200
         
+    flash('Task updated successfully!', 'success')
     return redirect(url_for('todo', 
                             category=request.args.get('category', ''), 
-                            page=request.args.get('page', 1)))
+                            page=request.args.get('page', 1),
+                            search=request.args.get('search', ''),
+                            status=request.args.get('status', 'all')))
     
 @app.post('/todo/bulk')
 @login_required
@@ -282,32 +300,27 @@ def bulk_action():
     action = request.form.get('action')
     
     if not todo_ids:
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return {"status": "error", "message": "No tasks selected."}, 400
         flash('No tasks were selected.', 'warning')
         return redirect(url_for('todo', category=request.args.get('category', ''), page=request.args.get('page', 1)))
-    todos = Todo.query.filter(Todo.id.in_(todo_ids), Todo.user_id == current_user.id).all()
 
+    todos = Todo.query.filter(Todo.id.in_(todo_ids), Todo.user_id == current_user.id).all()
+    
     if action == 'toggle':
         auto_delete = session.get('auto_delete')
-        deleted_count = 0
         affected_cats = set()
-        
         for t in todos:
             t.completed = not t.completed 
             if auto_delete and t.completed:
                 affected_cats.update([cat for cat in t.categories])
                 db.session.delete(t)
-                deleted_count += 1
-                
         db.session.commit()
-        if auto_delete and deleted_count > 0:
+        if auto_delete:
             for cat in affected_cats:
                 if not cat.todos:
-                    db.session.get(Category, cat.id)
                     db.session.delete(cat)
             db.session.commit()
-            flash(f'Toggled {len(todos)} tasks. {deleted_count} were auto-deleted.', 'info')
-        else:
-            flash(f'Successfully toggled {len(todos)} tasks.', 'success')
             
     elif action == 'delete':
         affected_cats = set()
@@ -319,12 +332,22 @@ def bulk_action():
             if not cat.todos:
                 db.session.delete(cat)
         db.session.commit()
-        flash(f'Successfully deleted {len(todos)} tasks.', 'success')
-    else:
-        flash('Invalid action selected.', 'danger')
+
+    msg = "Bulk update completed."
+    if action == 'delete':
+        msg = f"Deleted {len(todos)} tasks."
+    elif action == 'toggle':
+        msg = f"Updated {len(todos)} tasks"
+        if session.get('auto_delete'):
+            msg += " and completed tasks were auto-deleted"
+        msg += "."
+
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return {"status": "success", "message": msg}, 200
         
-    return redirect(url_for('todo', category=request.args.get('category', ''), page=request.args.get('page', 1)))    
-    
+    flash(msg, 'info')
+    return redirect(url_for('todo', ...))    
+
 @app.post('/update_preferences')
 @login_required
 def update_preferences():
@@ -533,9 +556,12 @@ def todo():
                 cat = Category.query.filter_by(name=clean_name).first() or Category(name=clean_name)
                 if cat not in new_todo.categories:
                     new_todo.categories.append(cat)
-            
             db.session.add(new_todo)
             db.session.commit()
+
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return {"status": "success", "message": "Task added!"}, 200
+            
             flash('Task added!', 'success')
             return redirect(url_for('todo', category=request.args.get('category', ''), page=request.args.get('page', 1)))
 
