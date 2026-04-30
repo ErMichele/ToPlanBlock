@@ -52,15 +52,12 @@
     document.addEventListener('DOMContentLoaded', function() {
         const timerDisplay = document.getElementById('countdown-timer');
         const progressBar = document.getElementById('countdown-progress');
-        const refreshBtn = document.getElementById('refresh-btn');
-        
+        const refreshBtn = document.getElementById('refresh-btn');    
         let waitSeconds = 60; 
         const limitStr = "{{ limit_info }}".toLowerCase();
-        
         if (limitStr.includes('minute')) waitSeconds = 60;
         else if (limitStr.includes('hour')) waitSeconds = 3600;
         else if (limitStr.includes('second')) waitSeconds = 10;
-
         const startTime = Date.now();
         const endTime = startTime + (waitSeconds * 1000);
 
@@ -68,11 +65,7 @@
             const now = Date.now();
             const remainingTotal = Math.max(0, endTime - now);
             const secondsLeft = Math.ceil(remainingTotal / 1000);
-            
-            // Update UI
             timerDisplay.textContent = secondsLeft;
-            
-            // Update Progress Bar
             const percentage = (remainingTotal / (waitSeconds * 1000)) * 100;
             progressBar.style.width = percentage + '%';
 
@@ -84,18 +77,11 @@
                 refreshBtn.innerHTML = '<i class="bi bi-check-circle-fill me-2"></i>Ready to Retry';
                 return;
             }
-
-            // Request next frame - this is more efficient than setInterval
-            // and handles tab backgrounding gracefully when paired with Date.now()
             requestAnimationFrame(updateTimer);
         }
-
-        // Handle Refresh click (No inline onclick used)
         refreshBtn.addEventListener('click', () => {
             location.reload();
         });
-
-        // Start the loop
         updateTimer();
     });
 </script>

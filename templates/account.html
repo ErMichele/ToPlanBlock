@@ -2,152 +2,151 @@
 {% block title %}ToPlanBlock - Account Settings{% endblock %}
 
 {% block content %}
-<div class="container">
-  <div class="row">
-    <div class="col-12 mb-4">
-      <h2 class="fw-bold">Account Settings</h2>
-      <p class="text-muted">Manage your profile information and security preferences.</p>
+<div class="container pb-5">
+  <div class="d-flex align-items-center justify-content-between mb-4 pb-3 border-bottom">
+    <div>
+      <h2 class="fw-bold mb-0">Account Settings</h2>
+      <p class="text-muted mb-0">Manage your identity, security, and app preferences.</p>
     </div>
+    <div class="d-none d-md-block text-end">
+        <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-3 py-2">
+            Member since: {% if current_user.created_at %}{{ current_user.created_at.strftime('%b %Y') }}{% else %}March 2026{% endif %}
+        </span>
+    </div>
+  </div>
 
+  <div class="row g-4">
     <div class="col-lg-7">
       <form id="profileForm" method="POST" enctype="multipart/form-data">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
 
-        <div class="card border-0 shadow-sm mb-4">
-          <div class="card-header bg-body-secondary py-3">
-            <h5 class="card-title mb-0">General Information</h5>
+        <div class="card border-0 shadow-sm mb-4 overflow-hidden">
+          <div class="card-header bg-body-secondary border-bottom py-3">
+            <h5 class="card-title mb-0 fw-bold"><i class="bi bi-person-circle me-2 text-primary"></i>General Information</h5>
           </div>
           <div class="card-body p-4">
             <div class="row align-items-center mb-4">
               <div class="col-auto">
-                <img src="{{ current_user.profile_pic_url or '' }}" alt="Profile Picture"
-                  class="rounded-circle shadow-sm border {% if not current_user.profile_pic_url %}d-none{% endif %}"
-                  id="profile-img" style="width: 100px; height: 100px; object-fit: cover;"
-                  onerror="this.classList.add('d-none'); document.getElementById('fallback-avatar').classList.remove('d-none');">
+                <div class="position-relative">
+                    <img src="{{ current_user.profile_pic_url or '' }}" alt="Profile Picture"
+                      class="rounded-circle shadow-sm border {% if not current_user.profile_pic_url %}d-none{% endif %}"
+                      id="profile-img" style="width: 90px; height: 90px; object-fit: cover;"
+                      onerror="this.classList.add('d-none'); document.getElementById('fallback-avatar').classList.remove('d-none');">
 
-                <div id="fallback-avatar"
-                  class="rounded-circle bg-secondary d-flex align-items-center justify-content-center text-body shadow-sm {% if current_user.profile_pic_url %}d-none{% endif %}"
-                  style="width: 100px; height: 100px; font-size: 2rem;">
-                  {{ current_user.username[0] | upper }}
+                    <div id="fallback-avatar"
+                      class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center shadow-sm {% if current_user.profile_pic_url %}d-none{% endif %}"
+                      style="width: 90px; height: 90px; font-size: 2.2rem; font-weight: 600;">
+                      {{ current_user.username[0] | upper }}
+                    </div>
                 </div>
               </div>
               <div class="col">
-                <label class="form-label fw-semibold">Update Profile Picture</label>
+                <label class="form-label small fw-bold text-uppercase text-muted mb-1">Update Photo</label>
                 <input class="form-control form-control-sm" type="file" name="picture" accept=".jpg,.jpeg,.png,.webp">
-                <div class="form-text">JPG, PNG or WEBP. Managed by Cloudinary.</div>
+                <div class="form-text mt-2">Recommended: Square image, max 5MB.</div>
               </div>
             </div>
 
             <div class="mb-3">
               <label class="form-label fw-semibold">Username</label>
-              <input class="form-control" type="text" name="username" value="{{ current_user.username }}" required>
+              <div class="input-group">
+                  <span class="input-group-text bg-body-secondary"><i class="bi bi-at"></i></span>
+                  <input class="form-control" type="text" name="username" value="{{ current_user.username }}" required>
+              </div>
             </div>
 
-            <div class="mb-3">
+            <div class="mb-0">
               <label class="form-label fw-semibold">Email Address</label>
-              <input class="form-control" type="email" name="email" value="{{ current_user.email }}" required>
+              <div class="input-group">
+                  <span class="input-group-text bg-body-secondary"><i class="bi bi-envelope"></i></span>
+                  <input class="form-control" type="email" name="email" value="{{ current_user.email }}" required>
+              </div>
             </div>
           </div>
         </div>
 
         <div class="card border-0 shadow-sm mb-4">
-          <div class="card-header bg-body-secondary py-3">
-            <h5 class="card-title mb-0">Security</h5>
+          <div class="card-header bg-body-secondary border-bottom py-3">
+            <h5 class="card-title mb-0 fw-bold"><i class="bi bi-shield-lock me-2 text-primary"></i>Security</h5>
           </div>
           <div class="card-body p-4">
-            <div class="mb-3">
+            <div class="mb-4">
               <label class="form-label fw-semibold">Current Password</label>
               <input class="form-control" type="password" name="current_password" autocomplete="current-password"
-                placeholder="Required for any changes" required>
-              <div class="form-text text-body-secondary italic">Confirm your current password to save changes.</div>
+                placeholder="Enter current password to authorize changes" required>
             </div>
 
-            <hr class="my-4">
-
-            <div class="mb-3">
-              <label class="form-label fw-semibold">New Password (Optional)</label>
-              <input class="form-control" type="password" name="new_password" minlength="8" autocomplete="new-password"
-                placeholder="Leave blank to keep current">
-              <div class="form-text">Must be at least 8 characters long.</div>
+            <div class="p-3 bg-body-secondary rounded-3">
+                <label class="form-label fw-semibold mb-1">New Password</label>
+                <input class="form-control" type="password" name="new_password" minlength="8" autocomplete="new-password"
+                  placeholder="Leave blank to keep current">
+                <div class="form-text">Minimum 8 characters with a mix of letters and numbers.</div>
             </div>
           </div>
-          <div class="card-footer bg-body-tertiary p-3 d-flex justify-content-end">
-            <button type="submit" class="btn btn-primary px-4 save-btn">Save All Changes</button>
+          <div class="card-footer bg-body-secondary border-0 p-3 text-end">
+            <button type="submit" class="btn btn-primary px-5 fw-bold save-btn">Save Account Changes</button>
           </div>
         </div>
       </form>
     </div>
 
     <div class="col-lg-5">
-      <div class="card border-0 shadow-sm mb-4 text-center p-4 bg-primary text-white">
-        <div class="card-body">
-          <h6 class="text-uppercase small fw-bold opacity-75">Member Since</h6>
-          <p class="h5 mb-0">
-            {% if current_user.created_at %}
-            {{ current_user.created_at.strftime('%B %Y') }}
-            {% else %}
-            March 2026
-            {% endif %}
-          </p>
-        </div>
-      </div>
-
       <div class="card border-0 shadow-sm mb-4">
-          <div class="card-header bg-body-secondary py-3">
-            <h5 class="card-title mb-0">Preferences</h5>
-          </div>
-        <div class="card-body p-4 text-start" id="prefsContainer">
+        <div class="card-header bg-body-secondary border-bottom py-3">
+          <h5 class="card-title mb-0 fw-bold"><i class="bi bi-sliders me-2 text-primary"></i>Preferences</h5>
+        </div>
+        <div class="card-body p-4" id="prefsContainer">
           <div class="mb-4">
-            <label class="form-label fw-bold">Site Theme</label>
+            <label class="form-label fw-bold small text-muted text-uppercase">Interface Theme</label>
             <select name="theme" class="form-select pref-auto-save">
               <option value="dark" {% if session.get('theme')=='dark' %}selected{% endif %}>Dark Mode</option>
               <option value="light" {% if session.get('theme')=='light' %}selected{% endif %}>Light Mode</option>
               <option value="system" {% if session.get('theme')=='system' %}selected{% endif %}>System Default</option>
             </select>
           </div>
+          
           <div class="mb-4">
-            <label class="form-label fw-bold">Default Task Sorting</label>
+            <label class="form-label fw-bold small text-muted text-uppercase">Task Ordering</label>
             <select name="sort_by" class="form-select pref-auto-save">
-              <option value="newest" {% if session.get('sort_by')=='newest' %}selected{% endif %}>First New (Latest
-                Created)</option>
-              <option value="oldest" {% if session.get('sort_by')=='oldest' %}selected{% endif %}>First Old (Oldest
-                Created)</option>
-              <option value="alpha" {% if session.get('sort_by')=='alpha' %}selected{% endif %}>Alphabetical (A-Z)
-              </option>
+              <option value="newest" {% if session.get('sort_by')=='newest' %}selected{% endif %}>Newest First</option>
+              <option value="oldest" {% if session.get('sort_by')=='oldest' %}selected{% endif %}>Oldest First</option>
+              <option value="alpha" {% if session.get('sort_by')=='alpha' %}selected{% endif %}>Alphabetical (A-Z)</option>
             </select>
           </div>
+
           <div class="form-check form-switch mb-3">
-            <input class="form-check-input pref-auto-save" type="checkbox" name="auto_delete" id="autoDelete" {% if
-              session.get('auto_delete') %}checked{% endif %}>
-            <label class="form-check-label" for="autoDelete">Auto-delete tasks when marked "Done"</label>
+            <input class="form-check-input pref-auto-save" type="checkbox" name="auto_delete" id="autoDelete" 
+            {% if session.get('auto_delete') %}checked{% endif %}>
+            <label class="form-check-label fw-medium" for="autoDelete">Auto-delete completed tasks</label>
           </div>
+          
           <div class="form-check form-switch">
-            <input class="form-check-input pref-auto-save" type="checkbox" name="confirm_delete" id="confirmDelete" {%
-              if session.get('confirm_delete', True) %}checked{% endif %}>
-            <label class="form-check-label" for="confirmDelete">Show confirmation before deleting</label>
+            <input class="form-check-input pref-auto-save" type="checkbox" name="confirm_delete" id="confirmDelete" 
+            {% if session.get('confirm_delete', True) %}checked{% endif %}>
+            <label class="form-check-label fw-medium" for="confirmDelete">Confirm before deleting</label>
+          </div>
+          
+          <div class="mt-3 pt-3 border-top">
+              <small class="text-success"><i class="bi bi-cloud-check me-1"></i> Changes save automatically</small>
           </div>
         </div>
       </div>
 
       <div class="card border-0 shadow-sm mb-4">
-        <div class="card-header bg-body-secondary py-3">
-          <h5 class="card-title mb-0">Data Management</h5>
-        </div>
         <div class="card-body p-4">
-          <p class="text-muted small">Take your data with you. Export your tasks and categories to a JSON file.</p>
-          <a href="{{ url_for('export_tasks') }}" class="btn btn-outline-primary w-100">
-            <i class="bi bi-download"></i> Export Tasks (JSON)
+          <h6 class="fw-bold mb-2">Export My Data</h6>
+          <p class="text-muted small">Download all your tasks and categories in a portable JSON format.</p>
+          <a href="{{ url_for('export_tasks') }}" class="btn btn-outline-primary btn-sm w-100 fw-bold">
+            <i class="bi bi-download me-2"></i>Download JSON
           </a>
         </div>
       </div>
 
-      <div class="card border-danger shadow-sm mb-4">
-        <div class="card-header bg-danger text-white py-3">
-          <h5 class="card-title mb-0">Danger Zone</h5>
-        </div>
+      <div class="card border-0 shadow-sm mb-4 bg-danger-subtle border-start border-4 border-danger">
         <div class="card-body p-4">
-          <p class="small text-muted">Once you delete your account, there is no going back.</p>
-          <button type="button" class="btn btn-outline-danger w-100" data-bs-toggle="modal"
+          <h6 class="text-danger fw-bold mb-2">Delete Account</h6>
+          <p class="small text-danger mb-3">Permanent action. All tasks, categories, and settings will be wiped.</p>
+          <button type="button" class="btn btn-danger btn-sm w-100" data-bs-toggle="modal"
             data-bs-target="#deleteAccountModal">
             Delete My Account
           </button>

@@ -1,6 +1,7 @@
 (function () {
-    const themePref = document.documentElement.getAttribute('data-theme-pref') || 'system';
-    
+    const getStoredTheme = () => {
+        return document.documentElement.getAttribute('data-theme-pref') || 'system';
+    };
     const setTheme = (theme) => {
         if (theme === 'system') {
             const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -9,7 +10,12 @@
             document.documentElement.setAttribute('data-bs-theme', theme);
         }
     };
-    setTheme(themePref);
+    setTheme(getStoredTheme());
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+        if (getStoredTheme() === 'system') {
+            setTheme('system');
+        }
+    });
 })();
 
 document.addEventListener('DOMContentLoaded', () => {
