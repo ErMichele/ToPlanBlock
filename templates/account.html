@@ -156,51 +156,38 @@
   </div>
 </div>
 
+<div class="modal fade" id="unsavedChangesModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-sm">
+    <div class="modal-content border-0 shadow-lg rounded-4">
+      <div class="modal-body p-4 text-center">
+        <div class="text-warning mb-3"><i class="bi bi-exclamation-circle display-4"></i></div>
+        <h5 class="fw-bold mb-2">Unsaved Changes</h5>
+        <p class="small text-muted mb-4">You have unsaved changes. If you leave now, they will be lost.</p>
+        <div class="d-flex flex-column gap-2">
+          <button type="button" class="btn btn-primary rounded-pill fw-bold py-2" data-bs-dismiss="modal">Stay and Save</button>
+          <button type="button" id="confirmLeaveBtn" class="btn btn-link text-danger text-decoration-none fw-bold">Leave Anyway</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="modal fade" id="deleteAccountModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header bg-danger text-white">
-        <h5 class="modal-title">Confirm Account Deletion</h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body">
-        <p><strong>Warning:</strong> This action is permanent and cannot be undone. All your tasks will be deleted.</p>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-        <form method="POST" action="{{ url_for('delete_account') }}">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-          <button type="submit" class="btn btn-danger">Permanently Delete Everything</button>
-        </form>
-      </div>
-    </div>
-  </div>
-</div>
-
-<div class="toast-container position-fixed bottom-0 end-0 p-3">
-  <div id="saveToast" class="toast align-items-center text-white bg-success border-0" role="alert" aria-live="assertive"
-    aria-atomic="true">
-    <div class="d-flex">
-      <div class="toast-body">Preferences saved automatically.</div>
-      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-    </div>
-  </div>
-</div>
-
-<div class="modal fade" id="unsavedChangesModal" tabindex="-1" aria-labelledby="unsavedModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="unsavedModalLabel">Unsaved Changes</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body">
-        <p>You have unsaved changes in <strong>General Information & Security</strong>.</p>
-        <p class="mb-0">If you leave now, these changes will be lost. Do you want to stay and save?</p>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Stay and Save</button>
-        <button type="button" id="confirmLeaveBtn" class="btn btn-danger">Leave Anyway</button>
+    <div class="modal-content border-0 shadow-lg rounded-4">
+      <div class="modal-body p-4 text-center">
+        <div class="text-danger mb-3"><i class="bi bi-person-x display-4"></i></div>
+        <h5 class="fw-bold mb-2">Delete Account?</h5>
+        <p class="small text-muted mb-4">
+          <strong>Warning:</strong> This action is permanent. All your tasks, settings, and profile data will be wiped forever.
+        </p>
+        <div class="d-flex gap-2">
+          <button type="button" class="btn btn-light rounded-pill flex-fill fw-bold" data-bs-dismiss="modal">Cancel</button>
+          <form method="POST" action="{{ url_for('delete_account') }}" class="flex-fill">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+            <button type="submit" class="btn btn-danger rounded-pill w-100 fw-bold">Delete Everything</button>
+          </form>
+        </div>
       </div>
     </div>
   </div>

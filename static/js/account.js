@@ -1,7 +1,6 @@
 document.addEventListener('DOMContentLoaded', function () {
     const infoForm = document.getElementById('profileForm');
-    const unsavedModal = new bootstrap.Modal(document.getElementById('unsavedChangesModal'));
-    const saveToast = new bootstrap.Toast(document.getElementById('saveToast'));
+    const unsavedModal = new bootstrap.Modal(document.getElementById('unsavedChangesModal'))
     let targetUrl = '';
     let skipCheck = false;
 
@@ -61,7 +60,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 });
 
                 if (response.ok) {
-                    saveToast.show();
+                    window.showToast("Preferences saved automatically.", "success");
                     const theme = formData.get('theme');
                     if (theme) {
                         const target = theme === 'system'

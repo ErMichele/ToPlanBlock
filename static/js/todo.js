@@ -138,17 +138,6 @@ class TodoAJAXManager {
         }
     }
 
-    showToast(message, category = 'success') {
-        this.toastMessage.textContent = message;
-        this.toastEl.classList.remove('bg-success', 'bg-danger', 'bg-warning');
-        
-        // Map Flask categories to Bootstrap colors
-        const bgColor = category === 'error' || category === 'danger' ? 'bg-danger' : 'bg-success';
-        this.toastEl.classList.add(bgColor);
-        
-        this.bsToast.show();
-    }
-
     initEventListeners() {
         document.addEventListener('submit', (e) => {
             const form = e.target;
@@ -188,16 +177,15 @@ class TodoAJAXManager {
             const data = await response.json();
 
             if (response.ok) {
-                // Close modals
                 const openModalEl = document.querySelector('.modal.show');
                 if (openModalEl) {
                     bootstrap.Modal.getInstance(openModalEl)?.hide();
                 }
                 
                 await this.refreshUI();
-                this.showToast(data.message || "Action successful!"); 
+                window.showToast(data.message || "Updated!", "success");
             } else {
-                this.showToast(data.message || "An error occurred.", "danger");
+                window.showToast(data.error || "An error occurred.", "danger");
             }
         } catch (error) {
             this.showToast("Network error. Please try again.", "danger");
