@@ -1,54 +1,102 @@
 {% extends "base.html" %}
-{% block title %}Too Many Requests - ToPlanBlock{% endblock %}
+{% block title %}Rate Limit Exceeded - ToPlanBlock{% endblock %}
 
 {% block content %}
-
-<div class="container py-5 text-center">
+<div class="container py-5">
     <div class="row justify-content-center">
-        <div class="col-md-6">
-            <div class="card border-0 shadow-sm p-5">
-                <div class="mb-4">
-                    <div class="display-1 text-warning fw-bold">429</div>
-                    <h2 class="fw-bold">Slow Down!</h2>
-                    <p class="badge bg-light text-dark border mt-2">Rate Limit Exceeded</p>
-                </div>
+        <div class="col-md-6 col-lg-5">
+            <div class="card border-0 shadow-lg rounded-4 overflow-hidden">
+                <div class="card-header bg-warning py-3 border-0"></div>
+                <div class="card-body p-5 text-center">
+                    <div class="mb-4">
+                        <div class="display-1 fw-bold text-warning mb-2">429</div>
+                        <h2 class="fw-bold">Take a Breather!</h2>
+                        <span class="badge rounded-pill bg-warning-subtle text-warning border border-warning-subtle px-3 py-2 mt-2">
+                            <i class="bi bi-speedometer2 me-1"></i> Rate Limit Exceeded
+                        </span>
+                    </div>
 
-                <div class="text-start mb-4">
-                    <p class="text-muted">
-                        You've reached the maximum number of actions allowed in a short period. This helps us keep the
-                        app fast and healthy for everyone.
-                    </p>
-
-                    <div class="card bg-body-tertiary border-0">
-                        <div class="card-body">
-                            <h6 class="fw-bold mb-3">Why am I seeing this?</h6>
-                            <ul class="small text-muted mb-0">
-                                <li><strong>Current Limit:</strong> {{ limit_info or "Standard safety limit" }}</li>
-                                <li><strong>Suggested Wait:</strong> About 60 seconds</li>
-                            </ul>
+                    <div class="text-start mb-4">
+                        <div class="p-3 bg-body-secondary rounded-3 border">
+                            <p class="small text-muted mb-2 text-uppercase fw-bold">Active Constraint</p>
+                            <p class="mb-0 fw-semibold text-">{{ limit_info or "Standard security limit" }}</p>
                         </div>
                     </div>
-                </div>
 
-                <div class="alert alert-warning mb-4 py-3">
-                    <div class="d-flex align-items-center justify-content-center">
-                        <div class="spinner-grow spinner-grow-sm me-2" role="status"></div>
-                        <span>Please wait a moment before trying again.</span>
+                    <div class="mb-4">
+                        <p class="text-muted small mb-3">You can try again in:</p>
+                        <div class="d-flex justify-content-center align-items-center">
+                            <div class="display-4 fw-mono text-primary fw-bold" id="countdown-timer">--</div>
+                            <span class="ms-2 fs-4 text-muted">seconds</span>
+                        </div>
+                        <div class="progress mt-3" style="height: 6px;">
+                            <div id="countdown-progress" class="progress-bar progress-bar-striped progress-bar-animated bg-primary" role="progressbar" style="width: 100%"></div>
+                        </div>
                     </div>
-                </div>
 
-                <div class="d-grid gap-2">
-                    <a href="{{ url_for('todo') }}" class="btn btn-primary">
-                        Return to Tasks
-                    </a>
-                    <button onclick="location.reload()" class="btn btn-outline-secondary btn-sm">
-                        Refresh Page
-                    </button>
+                    <div class="d-grid gap-3">
+                        <button id="refresh-btn" class="btn btn-primary py-3 fw-bold shadow-sm" disabled>
+                            <i class="bi bi-arrow-clockwise me-2"></i>Refresh Page
+                        </button>
+                        <a href="{{ url_for('todo') }}" class="btn btn-link text-decoration-none text-muted small">
+                            Return to Tasks
+                        </a>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
-
-
 </div>
+
+<script nonce="{{ g.nonce }}">
+    document.addEventListener('DOMContentLoaded', function() {
+        const timerDisplay = document.getElementById('countdown-timer');
+        const progressBar = document.getElementById('countdown-progress');
+        const refreshBtn = document.getElementById('refresh-btn');
+        
+        let waitSeconds = 60; 
+        const limitStr = "{{ limit_info }}".toLowerCase();
+        
+        if (limitStr.includes('minute')) waitSeconds = 60;
+        else if (limitStr.includes('hour')) waitSeconds = 3600;
+        else if (limitStr.includes('second')) waitSeconds = 10;
+
+        const startTime = Date.now();
+        const endTime = startTime + (waitSeconds * 1000);
+
+        function updateTimer() {
+            const now = Date.now();
+            const remainingTotal = Math.max(0, endTime - now);
+            const secondsLeft = Math.ceil(remainingTotal / 1000);
+            
+            // Update UI
+            timerDisplay.textContent = secondsLeft;
+            
+            // Update Progress Bar
+            const percentage = (remainingTotal / (waitSeconds * 1000)) * 100;
+            progressBar.style.width = percentage + '%';
+
+            if (remainingTotal <= 0) {
+                timerDisplay.textContent = "0";
+                progressBar.style.width = '0%';
+                progressBar.classList.remove('progress-bar-animated');
+                refreshBtn.disabled = false;
+                refreshBtn.innerHTML = '<i class="bi bi-check-circle-fill me-2"></i>Ready to Retry';
+                return;
+            }
+
+            // Request next frame - this is more efficient than setInterval
+            // and handles tab backgrounding gracefully when paired with Date.now()
+            requestAnimationFrame(updateTimer);
+        }
+
+        // Handle Refresh click (No inline onclick used)
+        refreshBtn.addEventListener('click', () => {
+            location.reload();
+        });
+
+        // Start the loop
+        updateTimer();
+    });
+</script>
 {% endblock %}

@@ -57,7 +57,11 @@
                     </section>
 
                     <div class="mt-5 pt-4 border-top text-center">
+                        {% if current_user.is_authenticated %}
+                        <a href="{{ url_for('todo') }}" class="btn btn-outline-primary rounded-pill px-4">Back to the tasks</a>
+                        {% else %}
                         <a href="{{ url_for('register') }}" class="btn btn-outline-primary rounded-pill px-4">Back to Registration</a>
+                        {% endif %}
                     </div>
                 </div>
             </div>
