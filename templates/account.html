@@ -136,9 +136,9 @@
         <div class="card-body p-4">
           <h6 class="fw-bold mb-2">Export My Data</h6>
           <p class="text-muted small">Download all your tasks and categories in a portable JSON format.</p>
-          <a href="{{ url_for('export_tasks') }}" class="btn btn-outline-primary btn-sm w-100 fw-bold">
+          <button id="exportBtn" class="btn btn-outline-primary btn-sm w-100 fw-bold">
             <i class="bi bi-download me-2"></i>Download JSON
-          </a>
+          </button>
         </div>
       </div>
 
@@ -209,6 +209,7 @@
 <script nonce="{{ g.nonce }}">
   const CSRF_TOKEN = "{{ csrf_token() }}";
   const PREF_URL = "{{ url_for('update_preferences') }}";
+  const EXPORT_URL = "{{ url_for('export_tasks') }}";
 </script>
 <script src="{{ url_for('static', filename='js/account.js') }}"></script>
 

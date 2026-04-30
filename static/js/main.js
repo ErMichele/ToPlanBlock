@@ -1,23 +1,3 @@
-(function () {
-    const getStoredTheme = () => {
-        return document.documentElement.getAttribute('data-theme-pref') || 'system';
-    };
-    const setTheme = (theme) => {
-        if (theme === 'system') {
-            const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-            document.documentElement.setAttribute('data-bs-theme', isDark ? 'dark' : 'light');
-        } else {
-            document.documentElement.setAttribute('data-bs-theme', theme);
-        }
-    };
-    setTheme(getStoredTheme());
-    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
-        if (getStoredTheme() === 'system') {
-            setTheme('system');
-        }
-    });
-})();
-
 document.addEventListener('DOMContentLoaded', () => {
     const yearEl = document.getElementById('year');
     if (yearEl) yearEl.textContent = new Date().getFullYear();
@@ -25,6 +5,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (cookieBtn) {
         cookieBtn.addEventListener('click', acceptCookies);
     }
+    checkCookies();
+    initThemeListener();
     checkCookies();
 });
 
@@ -41,16 +23,8 @@ function acceptCookies() {
     if (banner) banner.style.display = 'none';
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-    const yearEl = document.getElementById('year');
-    if (yearEl) yearEl.textContent = new Date().getFullYear();
-
-    initThemeListener();
-    checkCookies();
-});
-
 function initThemeListener() {
-    const themePref = "{{ session.get('theme', 'system') }}";
+    const themePref = document.documentElement.getAttribute('data-theme-pref');
 
     if (themePref === 'system') {
         window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
