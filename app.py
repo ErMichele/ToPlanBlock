@@ -185,6 +185,7 @@ def add_security_headers(response):
         f"default-src 'self'; "
         f"script-src 'self' https://cdn.jsdelivr.net 'nonce-{nonce}'; "
         f"style-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; "
+        f"font-src 'self' https://cdn.jsdelivr.net; " 
         f"img-src 'self' data: https://res.cloudinary.com; "
         f"connect-src 'self' https://api.github.com https://cdn.jsdelivr.net; "
     )

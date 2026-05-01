@@ -1,7 +1,6 @@
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     const infoForm = document.getElementById('profileForm');
-    const unsavedModal = new bootstrap.Modal(document.getElementById('unsavedChangesModal'));
-    const saveToast = new bootstrap.Toast(document.getElementById('saveToast'));
+    const unsavedModal = new bootstrap.Modal(document.getElementById('unsavedChangesModal'))
     let targetUrl = '';
     let skipCheck = false;
 
@@ -29,9 +28,9 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     document.querySelectorAll('a').forEach(link => {
-        link.addEventListener('click', function(e) {
+        link.addEventListener('click', function (e) {
             if (this.getAttribute('href') === '#' || this.getAttribute('data-bs-toggle') || this.hostname !== window.location.hostname) return;
-            
+
             if (isDirty()) {
                 e.preventDefault();
                 targetUrl = this.href;
@@ -50,7 +49,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     formData.append(i.name, i.value);
                 }
             });
-            
+
             formData.append('csrf_token', CSRF_TOKEN);
 
             try {
@@ -61,11 +60,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
 
                 if (response.ok) {
-                    saveToast.show();
+                    window.showToast("Preferences saved automatically.", "success");
                     const theme = formData.get('theme');
                     if (theme) {
-                        const target = theme === 'system' 
-                            ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') 
+                        const target = theme === 'system'
+                            ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
                             : theme;
                         document.documentElement.setAttribute('data-bs-theme', target);
                     }
@@ -82,4 +81,50 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     infoForm.addEventListener('submit', () => { skipCheck = true; });
+    const exportBtn = document.getElementById('exportBtn');
+
+    if (exportBtn) {
+        exportBtn.addEventListener('click', async () => {
+            try {
+                const response = await fetch(EXPORT_URL);
+                if (!response.ok) throw new Error('Export failed');
+                const disposition = response.headers.get('Content-Disposition');
+                let filename = `tasks_export_${new Date().toISOString().slice(0, 10)}.json`;
+                if (disposition && disposition.includes('filename=')) {
+                    const filenameRegex = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/;
+                    const matches = filenameRegex.exec(disposition);
+                    if (matches != null && matches[1]) {
+                        filename = matches[1].replace(/['"]/g, '');
+                    }
+                }
+                const blob = await response.blob();
+                if ('showSaveFilePicker' in window) {
+                    const handle = await window.showSaveFilePicker({
+                        suggestedName: filename,
+                        types: [{
+                            description: 'JSON File',
+                            accept: { 'application/json': ['.json'] },
+                        }],
+                    });
+                    const writable = await handle.createWritable();
+                    await writable.write(blob);
+                    await writable.close();
+                } else {
+                    // Fallback for browsers like Firefox
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    a.remove();
+                }
+            } catch (err) {
+                if (err.name !== 'AbortError') {
+                    console.error("Export error:", err);
+                }
+            }
+        });
+    }
 });

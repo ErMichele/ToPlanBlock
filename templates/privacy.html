@@ -3,48 +3,72 @@
 {% block content %}
 <div class="container py-5">
     <div class="row justify-content-center">
-        <div class="col-md-8">
-            <h1 class="fw-bold mb-4">Privacy Policy</h1>
-            <p class="text-muted">Effective Date: March 13, 2026</p>
+        <div class="col-md-9 col-lg-8">
+            <div class="card border-0 shadow-lg rounded-4 overflow-hidden">
+                <div class="card-body p-5">
+                    <div class="text-center mb-5">
+                        <h1 class="fw-bold display-5">Privacy Policy</h1>
+                        <p class="text-muted">Effective Date: March 13, 2026</p>
+                        <hr class="w-25 mx-auto opacity-75">
+                    </div>
 
-            <section class="mb-4">
-                <h4 class="fw-bold">1. Data Controller</h4>
-                <p>The data controller for this application is <strong>ToPlanBlock</strong>. For any privacy-related
-                    inquiries, you can contact: <a
-                        href="mailto:micheleacciuffi@gmail.com">micheleacciuffi@gmail.com</a>.</p>
-            </section>
+                    <div class="alert alert-info border-0 rounded-4 p-4 mb-5">
+                        <h5 class="fw-bold"><i class="bi bi-envelope-paper-fill me-2"></i>Data Controller</h5>
+                        <p class="mb-0">The data controller for this application is <strong>ToPlanBlock</strong>. For inquiries, contact: <a href="mailto:micheleacciuffi@gmail.com" class="text-decoration-none fw-bold">micheleacciuffi@gmail.com</a>.</p>
+                    </div>
 
-            <section class="mb-4">
-                <h4 class="fw-bold">2. Data We Collect</h4>
-                <ul>
-                    <li><strong>Account Information:</strong> Email and Username required for registration and
-                        authentication.</li>
-                    <li><strong>User Content:</strong> Tasks and Categories created within the application.</li>
-                    <li><strong>Profile Imagery:</strong> Optional profile pictures uploaded by the user.</li>
-                    <li><strong>Technical Data:</strong> Essential session cookies required for login functionality. We
-                        do not use tracking or advertising cookies.</li>
-                </ul>
-            </section>
+                    <section class="mb-5">
+                        <h4 class="fw-bold mb-3">What Data We Collect</h4>
+                        <div class="row g-4">
+                            <div class="col-sm-6">
+                                <div class="p-3 border rounded-4 h-100">
+                                    <h6 class="fw-bold text-primary">Account Data</h6>
+                                    <p class="small text-muted mb-0">Email and Username used for registration and login.</p>
+                                </div>
+                            </div>
+                            <div class="col-sm-6">
+                                <div class="p-3 border rounded-4 h-100">
+                                    <h6 class="fw-bold text-primary">User Content</h6>
+                                    <p class="small text-muted mb-0">Tasks and Categories you create within the app.</p>
+                                </div>
+                            </div>
+                            <div class="col-sm-6">
+                                <div class="p-3 border rounded-4 h-100">
+                                    <h6 class="fw-bold text-primary">Profile Imagery</h6>
+                                    <p class="small text-muted mb-0">Optional profile pictures uploaded by you.</p>
+                                </div>
+                            </div>
+                            <div class="col-sm-6">
+                                <div class="p-3 border rounded-4 h-100">
+                                    <h6 class="fw-bold text-primary">Technical Data</h6>
+                                    <p class="small text-muted mb-0">Essential session cookies only. No tracking or ads.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
 
-            <section class="mb-4">
-                <h4 class="fw-bold">3. Third-Party Service Providers</h4>
-                <p>To provide our services, we share specific data with the following processors:</p>
-                <ul>
-                    <li><strong>Cloudinary:</strong> Used for the storage and optimization of profile pictures. When you
-                        upload an image, it is transmitted to and stored on Cloudinary's servers.</li>
-                </ul>
-            </section>
+                    <section class="mb-5">
+                        <h4 class="fw-bold mb-3">Third-Party Processors</h4>
+                        <p class="text-secondary">We share specific data with the following processors to provide our services:</p>
+                        <div class="d-flex align-items-center p-3 bg-body-secondary rounded-4">
+                            <div class="flex-grow-1">
+                                <h6 class="fw-bold mb-1">Cloudinary</h6>
+                                <p class="small text-muted mb-0">Used for secure storage and optimization of profile pictures.</p>
+                            </div>
+                        </div>
+                    </section>
 
-            <section class="mb-4">
-                <h4 class="fw-bold">4. Data Retention & Deletion</h4>
-                <p>We retain your data as long as your account is active. You may delete your account at any time via
-                    the "Account Settings" page. Deleting your account will result in the permanent removal of:</p>
-                <ul>
-                    <li>Your profile information and credentials.</li>
-                    <li>All associated tasks and categories.</li>
-                    <li>Your profile image (it will be programmatically removed from our storage and Cloudinary).</li>
-                </ul>
-            </section>
+                    <section class="mb-0">
+                        <h4 class="fw-bold mb-3">Retention & Your Rights</h4>
+                        <p class="text-secondary">We retain your data as long as your account is active. You may delete your account at any time. Deleting your account permanently removes:</p>
+                        <ul class="text-secondary">
+                            <li>Profile information and credentials.</li>
+                            <li>All associated tasks and categories.</li>
+                            <li>Profile images from our storage and Cloudinary.</li>
+                        </ul>
+                    </section>
+                </div>
+            </div>
         </div>
     </div>
 </div>
