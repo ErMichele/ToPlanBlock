@@ -25,7 +25,7 @@ from sqlalchemy.orm import joinedload
 from sqlalchemy.exc import IntegrityError
 
 load_dotenv()
-app = Flask(__name__)
+app = Flask(__name__, static_folder='static', template_folder='templates')
 
 # --- CONFIGURATION ---
 app.config['SECRET_KEY'] = os.getenv("SECRET_KEY", "secure-fallback-key-for-local-dev")
