@@ -30,14 +30,11 @@ app = Flask(__name__, static_folder='static', template_folder='templates')
 # --- CONFIGURATION ---
 app.config['SECRET_KEY'] = os.getenv("SECRET_KEY", "secure-fallback-key-for-local-dev")
 IS_PROD = os.getenv("BRANCH") == "production"
+CLOUDINARY_FOLDER = f"ToPlanBlock/{os.getenv('BRANCH', 'dev')}"
 
 database_url = os.getenv('DEV_DATABASE_URL', 'sqlite:///todo.db')
-
 if IS_PROD:
     database_url = os.getenv('PRODUCTION_DATABASE_URL')
-else:
-    UPLOAD_FOLDER = os.path.join('static', 'uploads', 'profile_pics')
-    os.makedirs(os.path.join(app.root_path, UPLOAD_FOLDER), exist_ok=True)
 
 app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -89,10 +86,17 @@ class User(db.Model, UserMixin):
     username = db.Column(db.String(150), unique=True, nullable=False)
     email = db.Column(db.String(150), unique=True, nullable=False)
     password = db.Column(db.String(200), nullable=False)
-    profile_pic_url = db.Column(db.String(500), nullable=True) 
+    profile_pic_id = db.Column(db.String(100), nullable=True) 
     created_at = db.Column(db.DateTime, default=datetime.now)
     todos = db.relationship('Todo', backref='owner', lazy=True, cascade='all, delete-orphan')
-
+    @property
+    def profile_pic_url(self):
+        if not self.profile_pic_id:
+            return None
+        
+        folder = f"ToPlanBlock/{os.getenv('BRANCH', 'dev')}/profile_pics"
+        return f"https://res.cloudinary.com/{os.getenv('CLOUDINARY_CLOUD_NAME')}/image/upload/{folder}/{self.profile_pic_id}"
+    
 class Category(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), unique=True, nullable=False)
@@ -119,29 +123,6 @@ def load_user(user_id):
 def allowed_file(filename):
     """Check if the file has an allowed extension."""
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-
-def delete_old_image(url):
-    """Handles deletion for both Cloudinary and local files."""
-    if not url:
-        return
-    
-    # Check if it's a local file
-    if url.startswith('/static/uploads/'):
-        relative_path = url.lstrip('/')
-        full_path = os.path.join(current_app.root_path, relative_path)
-        if os.path.exists(full_path):
-            os.remove(full_path)
-            
-    # Otherwise, assume Cloudinary
-    elif 'cloudinary.com' in url:
-        try:
-            parts = url.split('/')
-            if 'upload' in parts:
-                idx = parts.index('upload')
-                public_id = "/".join(parts[idx+2:]).rsplit('.', 1)[0]
-                cloudinary.uploader.destroy(public_id, invalidate=True)
-        except Exception as e:
-            print(f"Error removing Cloudinary image: {e}")
 
 def toggle_category_string(current_str, toggle_name):
     """Helper to add/remove a category name from a comma-separated string."""
@@ -374,7 +355,9 @@ def update_preferences():
 def delete_account():
     user_id = current_user.id
     if current_user.profile_pic_url:
-        delete_old_image(current_user.profile_pic_url)
+        folder = f"ToPlanBlock/{os.getenv('BRANCH', 'dev')}/profile_pics"
+        public_id = f"{folder}/{current_user.profile_pic_id}"
+        cloudinary.uploader.destroy(public_id, invalidate=True)
     user_todos = Todo.query.filter_by(user_id=user_id).all()
     affected_cats = set()
     for t in user_todos:
@@ -514,22 +497,22 @@ def account():
         if 'picture' in request.files:
             file = request.files['picture']
             if file and file.filename != '' and allowed_file(file.filename):
-                old_url = current_user.profile_pic_url
+                old_id = current_user.profile_pic_id
                 
-                if IS_PROD:
-                    upload_result = cloudinary.uploader.upload(
-                        file, folder="profile_pics/",
-                        public_id=f"user_{current_user.id}_{uuid.uuid4().hex[:5]}",
-                        transformation=[{'width': 400, 'height': 400, 'crop': 'fill'}]
-                    )
-                    current_user.profile_pic_url = upload_result.get('secure_url')
-                else:
-                    filename = f"user_{current_user.id}_{uuid.uuid4().hex[:5]}.webp"
-                    filepath = os.path.join(current_app.root_path, 'static/uploads/profile_pics', filename)
-                    file.save(filepath)
-                    current_user.profile_pic_url = f"/static/uploads/profile_pics/{filename}"
+                branch = os.getenv('BRANCH', 'dev')
+                target_folder = f"ToPlanBlock/{branch}/profile_pics"
 
-                delete_old_image(old_url)
+                upload_result = cloudinary.uploader.upload(
+                    file, 
+                    folder=target_folder,
+                    transformation=[{'width': 400, 'height': 400, 'crop': 'fill'}]
+                )
+                full_public_id = upload_result.get('public_id')
+                current_user.profile_pic_id = full_public_id.split('/')[-1]
+                if old_id:
+                    folder = f"ToPlanBlock/{os.getenv('BRANCH', 'dev')}/profile_pics"
+                    old_public_id = f"{folder}/{old_id}"
+                    cloudinary.uploader.destroy(old_public_id, invalidate=True)
 
         # Handle Password Change
         new_pw = request.form.get('new_password', '').strip()
