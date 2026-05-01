@@ -1,13 +1,18 @@
+import io
 import os
 import uuid
 import cloudinary
 import cloudinary.uploader
+from markupsafe import Markup
 import requests
 import markdown
-from datetime import datetime
-from pathlib import Path
+import bleach
+import secrets
+import json
+from datetime import datetime, timedelta
+from urllib.parse import urlparse
 from dotenv import load_dotenv
-from flask import Flask, render_template, redirect, url_for, request, flash, session, current_app
+from flask import Flask, render_template, redirect, send_file, url_for, request, flash, session, current_app, g
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from flask_bcrypt import Bcrypt
@@ -18,10 +23,9 @@ from flask_limiter.util import get_remote_address
 from flask_caching import Cache
 from sqlalchemy.orm import joinedload
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy import or_
 
 load_dotenv()
-app = Flask(__name__)
+app = Flask(__name__, static_folder='static', template_folder='templates')
 
 # --- CONFIGURATION ---
 app.config['SECRET_KEY'] = os.getenv("SECRET_KEY", "secure-fallback-key-for-local-dev")
@@ -37,6 +41,11 @@ else:
 app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024  # 5MB
+app.config['SECRET_KEY'] = os.getenv("SECRET_KEY", "secure-fallback-key-for-local-dev")
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SECURE'] = IS_PROD
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 
 cloudinary.config(
     cloud_name = os.getenv('CLOUDINARY_CLOUD_NAME'),
@@ -148,22 +157,66 @@ def toggle_category_string(current_str, toggle_name):
     
     return ",".join(parts)
 
+@cache.cached(timeout=3600) # This function is cached for 1 hour
+def github_api_request():
+    """Helper to make GitHub API requests with error handling."""
+    url = "https://api.github.com/repos/ermichele/toplanblock/releases"
+    try:
+        response = requests.get(url, headers={"User-Agent": "ToPlanBlock-App"}, timeout=10)
+        if response.status_code == 200:
+            return response.json()[:5]  # Return only the latest 5 releases
+    except Exception as e:
+        app.logger.error(f"GitHub API Error: {e}")
+    return []
+
+#---------------- Security Headers ----------------
+@app.before_request
+def set_nonce():
+    g.nonce = secrets.token_urlsafe(16)
+
+@app.after_request
+def add_security_headers(response):
+    response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-XSS-Protection'] = '1; mode=block'
+    
+    nonce = getattr(g, 'nonce', '')
+    response.headers['Content-Security-Policy'] = (
+        f"default-src 'self'; "
+        f"script-src 'self' https://cdn.jsdelivr.net 'nonce-{nonce}'; "
+        f"style-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; "
+        f"font-src 'self' https://cdn.jsdelivr.net; " 
+        f"img-src 'self' data: https://res.cloudinary.com; "
+        f"connect-src 'self' https://api.github.com https://cdn.jsdelivr.net; "
+    )
+    
+    if IS_PROD:
+        response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+        
+    return response
+
 #---------------- Template Filters ----------------
 @app.template_filter('markdown')
 def render_markdown(text):
     if not text:
         return ""
-    
-    # Extensions explained:
-    # 'extra': Tables, footnotes, etc.
-    # 'sane_lists': Allows nesting with 2 spaces instead of a strict 4.
-    # 'markdown_checklist.extension': Enables [x] and [ ] rendering.
-    
-    return markdown.markdown(text, extensions=[
-        'extra', 
-        'sane_lists', 
-        'markdown_checklist.extension'
+    html_content = markdown.markdown(text, extensions=[
+        'fenced_code', 'tables', 'extra', 'sane_lists', 'markdown_checklist.extension'
     ])
+    allowed_tags = [
+        'p', 'br', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 
+        'strong', 'em', 'u', 'ul', 'ol', 'li', 'code', 'pre',
+        'blockquote', 'hr', 'table', 'thead', 'tbody', 'tr', 'th', 'td', 'input'
+    ]
+    allowed_attrs = {
+        '*': ['class'],
+        'a': ['href', 'title', 'target'],
+        'input': ['type', 'disabled', 'checked']
+    }
+    clean_html = bleach.clean(html_content, tags=allowed_tags, attributes=allowed_attrs)
+    return Markup(clean_html)
+    
+    
 # ---------------- Post Routes ----------------
 @app.post('/todo/<int:todo_id>/toggle')
 @login_required
@@ -171,6 +224,7 @@ def toggle(todo_id):
     t = Todo.query.filter_by(id=todo_id, user_id=current_user.id).first_or_404()
     t.completed = not t.completed
     
+    msg = 'Task updated.'
     if session.get('auto_delete') and t.completed:
         cats = list(t.categories)
         db.session.delete(t)
@@ -179,11 +233,19 @@ def toggle(todo_id):
             if not cat.todos:
                 db.session.delete(cat)
         db.session.commit()
-        flash('Task completed and auto-deleted.', 'info')
+        msg = 'Task completed and auto-deleted.'
     else:
         db.session.commit()
+
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return {"status": "success", "message": msg}, 200
         
-    return redirect(url_for('todo', category=request.args.get('category', '')))
+    flash(msg, 'info')
+    return redirect(url_for('todo', 
+                            category=request.args.get('category', ''), 
+                            page=request.args.get('page', 1),
+                            search=request.args.get('search', ''),
+                            status=request.args.get('status', 'all')))
 
 @app.post('/todo/<int:todo_id>/delete')
 @login_required
@@ -196,7 +258,100 @@ def delete(todo_id):
         if not cat.todos:
             db.session.delete(cat)
     db.session.commit()
-    return redirect(url_for('todo', category=request.args.get('category', '')))
+
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return {"status": "success", "message": "Task deleted."}, 200
+
+    return redirect(url_for('todo', 
+                            category=request.args.get('category', ''), 
+                            page=request.args.get('page', 1),
+                            search=request.args.get('search', ''),
+                            status=request.args.get('status', 'all')))
+    
+@app.post('/todo/<int:todo_id>/edit')
+@login_required
+def edit(todo_id):
+    t = Todo.query.filter_by(id=todo_id, user_id=current_user.id).first_or_404()
+    task_text = request.form.get('task', '').strip()
+    cat_list = [c.strip().upper() for c in request.form.get('categories_csv', '').split(',') if c.strip()]
+    
+    if task_text:
+        t.task = task_text
+        t.categories = [] 
+        for clean_name in cat_list:
+            cat = Category.query.filter_by(name=clean_name).first() or Category(name=clean_name)
+            if cat not in t.categories:
+                t.categories.append(cat)
+        db.session.commit()
+
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return {"status": "success", "message": "Task updated."}, 200
+        
+    flash('Task updated successfully!', 'success')
+    return redirect(url_for('todo', 
+                            category=request.args.get('category', ''), 
+                            page=request.args.get('page', 1),
+                            search=request.args.get('search', ''),
+                            status=request.args.get('status', 'all')))
+    
+@app.post('/todo/bulk')
+@login_required
+def bulk_action():
+    todo_ids = [int(tid) for tid in request.form.getlist('todo_ids') if tid.isdigit()]
+    action = request.form.get('action')
+    
+    if not todo_ids:
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return {"status": "error", "message": "No tasks selected."}, 400
+        flash('No tasks were selected.', 'warning')
+        return redirect(url_for('todo', category=request.args.get('category', ''), page=request.args.get('page', 1)))
+
+    todos = Todo.query.filter(Todo.id.in_(todo_ids), Todo.user_id == current_user.id).all()
+    
+    if action == 'toggle':
+        auto_delete = session.get('auto_delete')
+        affected_cats = set()
+        for t in todos:
+            t.completed = not t.completed 
+            if auto_delete and t.completed:
+                affected_cats.update([cat for cat in t.categories])
+                db.session.delete(t)
+        db.session.commit()
+        if auto_delete:
+            for cat in affected_cats:
+                if not cat.todos:
+                    db.session.delete(cat)
+            db.session.commit()
+            
+    elif action == 'delete':
+        affected_cats = set()
+        for t in todos:
+            affected_cats.update([cat for cat in t.categories])
+            db.session.delete(t)
+        db.session.commit()
+        for cat in affected_cats:
+            if not cat.todos:
+                db.session.delete(cat)
+        db.session.commit()
+
+    msg = "Bulk update completed."
+    if action == 'delete':
+        msg = f"Deleted {len(todos)} tasks."
+    elif action == 'toggle':
+        msg = f"Updated {len(todos)} tasks"
+        if session.get('auto_delete'):
+            msg += " and completed tasks were auto-deleted"
+        msg += "."
+
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return {"status": "success", "message": msg}, 200
+        
+    flash(msg, 'info')
+    return redirect(url_for('todo', 
+                            category=request.args.get('category', ''), 
+                            page=request.args.get('page', 1),
+                            search=request.args.get('search', ''),
+                            status=request.args.get('status', 'all')))
 
 @app.post('/update_preferences')
 @login_required
@@ -204,29 +359,48 @@ def update_preferences():
     session['auto_delete'] = 'auto_delete' in request.form
     session['confirm_delete'] = 'confirm_delete' in request.form
     session['sort_by'] = request.form.get('sort_by', 'newest')
-    flash('Preferences updated (Session saved).', 'success')
+    session['theme'] = request.form.get('theme', 'system')
+    
+    # Check if request is AJAX
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return {"status": "success"}, 200
+        
+    flash('Preferences updated.', 'success')
     return redirect(url_for('account'))
 
 @app.post('/account/delete')
 @login_required
 def delete_account():
+    user_id = current_user.id
     if current_user.profile_pic_url:
         delete_old_image(current_user.profile_pic_url)
-
-    user_todos = Todo.query.filter_by(user_id=current_user.id).all()
+    user_todos = Todo.query.filter_by(user_id=user_id).all()
     affected_cats = set()
     for t in user_todos:
         for cat in t.categories:
-            affected_cats.add(cat)
+            affected_cats.add(cat.id)
 
     db.session.delete(current_user)
     db.session.commit()
 
-    for cat in affected_cats:
-        c = db.session.get(Category, cat.id)
+    logout_user()
+    session.clear()
+
+    for cat_id in affected_cats:
+        c = db.session.get(Category, cat_id)
         if c and not c.todos:
             db.session.delete(c)
     db.session.commit()
+    
+    flash('Account and all associated data have been permanently deleted.', 'info')
+    return redirect(url_for('landing'))
+
+@app.post('/logout')
+@login_required
+def logout():
+    logout_user()
+    session.clear()
+    flash('Logged out.', 'info')
     return redirect(url_for('landing'))
 
 # ---------------- Error Handlers ----------------
@@ -243,6 +417,11 @@ def internal_error(error):
 def request_entity_too_large(error):
     flash("The file is too large! Maximum allowed size is 5MB.", "danger")
     return redirect(url_for('account'))
+
+@app.errorhandler(429)
+def ratelimit_handler(error):
+    retry_after = error.description if hasattr(error, 'description') else "a few minutes"
+    return render_template('429.html', limit_info=retry_after), 429
 
 # ---------------- Routes ----------------
 @app.route('/')
@@ -264,15 +443,18 @@ def register():
         return redirect(url_for('todo'))
     
     if request.method == 'POST':
-        username = request.form['username'].strip()
-        email = request.form['email'].strip().lower()
-        raw_pw = request.form['password']
+        username = request.form.get('username', '').strip()
+        email = request.form.get('email', '').strip().lower()
+        raw_pw = request.form.get('password', '')
+
         if not username or not email or not raw_pw:
             flash('All fields are required.', 'danger')
             return redirect(url_for('register'))
+
         if len(raw_pw) < 8:
             flash('Password is too short (min 8 chars).', 'danger')
             return redirect(url_for('register'))
+
         hashed_pw = bcrypt.generate_password_hash(raw_pw).decode('utf-8')
         user = User(username=username, email=email, password=hashed_pw)
         db.session.add(user)
@@ -293,38 +475,39 @@ def login():
         return redirect(url_for('todo'))
     
     if request.method == 'POST':
-        email = request.form['email'].strip().lower()
-        pw = request.form['password']
+        email = request.form.get('email', '').strip().lower()
+        pw = request.form.get('password', '')
         user = User.query.filter_by(email=email).first()
         if user and bcrypt.check_password_hash(user.password, pw):
+            session.clear()
             login_user(user)
+            next_page = request.args.get('next')
+            if not next_page or urlparse(next_page).netloc != '':
+                next_page = url_for('todo')
+                
             flash('Logged in successfully.', 'success')
-            return redirect(request.args.get('next') or url_for('todo'))
+            return redirect(next_page)
+        
         flash('Invalid credentials.', 'danger')
     return render_template('login.html')
 
-@app.route('/logout')
-@login_required
-def logout():
-    logout_user()
-    flash('Logged out.', 'info')
-    return redirect(url_for('landing'))
-
 @app.route('/account', methods=['GET','POST'])
 @login_required
+@limiter.limit("10 per minute")
 def account():
     if request.method == 'POST':
         # Security check
-        current_pw = request.form.get('current_password') or request.form.get('old_password')
+        current_pw = request.form.get('current_password')
         if not current_pw or not bcrypt.check_password_hash(current_user.password, current_pw):
             flash('Incorrect current password.', 'danger')
             return redirect(url_for('account'))
 
-        # Update Username/Email
         new_username = request.form.get('username', '').strip()
-        new_email = request.form.get('email', '').strip().lower()
-        if new_username and new_email:
+        if new_username and new_username != current_user.username:
             current_user.username = new_username
+
+        new_email = request.form.get('email', '').strip().lower()
+        if new_email and new_email != current_user.email:
             current_user.email = new_email
 
         if 'picture' in request.files:
@@ -333,7 +516,6 @@ def account():
                 old_url = current_user.profile_pic_url
                 
                 if IS_PROD:
-                    # Cloudinary Path
                     upload_result = cloudinary.uploader.upload(
                         file, folder="profile_pics/",
                         public_id=f"user_{current_user.id}_{uuid.uuid4().hex[:5]}",
@@ -341,7 +523,6 @@ def account():
                     )
                     current_user.profile_pic_url = upload_result.get('secure_url')
                 else:
-                    # Local Path
                     filename = f"user_{current_user.id}_{uuid.uuid4().hex[:5]}.webp"
                     filepath = os.path.join(current_app.root_path, 'static/uploads/profile_pics', filename)
                     file.save(filepath)
@@ -380,23 +561,38 @@ def todo():
                 cat = Category.query.filter_by(name=clean_name).first() or Category(name=clean_name)
                 if cat not in new_todo.categories:
                     new_todo.categories.append(cat)
-            
             db.session.add(new_todo)
             db.session.commit()
-            flash('Task added!', 'success')
-            return redirect(url_for('todo', category=request.args.get('category', '')))
 
-    # --- GET LOGIC ---
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return {"status": "success", "message": "Task added!"}, 200
+            
+            flash('Task added!', 'success')
+            return redirect(url_for('todo', category=request.args.get('category', ''), page=request.args.get('page', 1)))
+
+    page = request.args.get('page', 1, type=int)
     selected_category_input = request.args.get('category', '')
+    search_query = request.args.get('search', '').strip()
+    status_filter = request.args.get('status', 'all').lower()
     q = Todo.query.options(joinedload(Todo.categories)).filter_by(user_id=current_user.id)
     
-    # 1. APPLY INTERSECTION (AND) FILTER
+    # Keyword Search (Case-insensitive)
+    if search_query:
+        q = q.filter(Todo.task.ilike(f"%{search_query}%"))
+
+    # Category Filter
     if selected_category_input:
         cat_filter_list = [c.strip().upper() for c in selected_category_input.split(',') if c.strip()]
         for cat_name in cat_filter_list:
             q = q.filter(Todo.categories.any(Category.name == cat_name))
 
-    # 2. APPLY SORTING PREFERENCE
+    # Status Filtering
+    if status_filter == 'active':
+        q = q.filter(Todo.completed == False)
+    elif status_filter == 'completed':
+        q = q.filter(Todo.completed == True)
+
+    # Sorting
     sort_pref = session.get('sort_by', 'newest')
     if sort_pref == 'alpha':
         q = q.order_by(Todo.completed.asc(), Todo.task.asc())
@@ -405,29 +601,54 @@ def todo():
     else:  # Default to 'newest'
         q = q.order_by(Todo.completed.asc(), Todo.id.desc())
 
-    tasks = q.distinct().all()
+    pagination = q.distinct().paginate(page=page, per_page=10, error_out=False)
+    
+    # Calculate progress bar percentage for tasks currently on page
+    page_items = pagination.items
+    total_on_page = len(page_items)
+    completed_on_page = sum(1 for t in page_items if t.completed)
+    progress_percent = int((completed_on_page / total_on_page * 100)) if total_on_page > 0 else 0
+
     user_cat_ids = db.session.query(Category.id).join(Todo.categories).filter(Todo.user_id == current_user.id).distinct()
     categories = Category.query.filter(Category.id.in_(user_cat_ids)).order_by(Category.name).all()
 
     return render_template('todo.html', 
-                         tasks=tasks, 
+                         pagination=pagination,
                          categories=categories, 
                          selected_category=selected_category_input, 
+                         search_query=search_query,
+                         status_filter=status_filter,
+                         progress_percent=progress_percent,
                          toggle_cat=toggle_category_string)
 
 @app.route('/version')
-@cache.cached(timeout=3600) # This route is cached for 1 hour
 def version():
-    url = "https://api.github.com/repos/ermichele/toplanblock/releases"
-    releases = []
-    try:
-        response = requests.get(url, headers={"User-Agent": "ToPlanBlock-App"}, timeout=10)
-        if response.status_code == 200:
-            releases = response.json()
-    except Exception as e:
-        app.logger.error(f"GitHub API Error: {e}")
-
+    releases = github_api_request()
     return render_template('version.html', releases=releases)
+
+@app.route('/export/tasks')
+@login_required
+@limiter.limit("5 per hour")
+def export_tasks():
+    user_todos = Todo.query.filter_by(user_id=current_user.id).all()
+    export_data = []
+    for t in user_todos:
+        export_data.append({
+            "task": t.task,
+            "completed": t.completed,
+            "categories": [c.name for c in t.categories]
+        })
+    json_string = json.dumps(export_data, indent=4)
+    buffer = io.BytesIO()
+    buffer.write(json_string.encode('utf-8'))
+    buffer.seek(0)
+
+    return send_file(
+        buffer,
+        mimetype='application/json',
+        as_attachment=True,
+        download_name=f'{current_user.username}_tasks_{datetime.now().strftime("%Y%m%d")}.json'
+    )
 
 @app.route('/health')
 @limiter.exempt
@@ -436,4 +657,4 @@ def health_check():
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
-    app.run(host='0.0.0.0', port=port)
+    app.run(host='0.0.0.0', port=port, debug=not IS_PROD)

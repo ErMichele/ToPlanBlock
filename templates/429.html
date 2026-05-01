@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}Rate Limit Exceeded - ToPlanBlock{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6 col-lg-5">
+            <div class="card border-0 shadow-lg rounded-4 overflow-hidden">
+                <div class="card-header bg-warning py-3 border-0"></div>
+                <div class="card-body p-5 text-center">
+                    <div class="mb-4">
+                        <div class="display-1 fw-bold text-warning mb-2">429</div>
+                        <h2 class="fw-bold">Take a Breather!</h2>
+                        <span class="badge rounded-pill bg-warning-subtle text-warning border border-warning-subtle px-3 py-2 mt-2">
+                            <i class="bi bi-speedometer2 me-1"></i> Rate Limit Exceeded
+                        </span>
+                    </div>
+
+                    <div class="text-start mb-4">
+                        <div class="p-3 bg-body-secondary rounded-3 border">
+                            <p class="small text-muted mb-2 text-uppercase fw-bold">Active Constraint</p>
+                            <p class="mb-0 fw-semibold text-">{{ limit_info or "Standard security limit" }}</p>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <p class="text-muted small mb-3">You can try again in:</p>
+                        <div class="d-flex justify-content-center align-items-center">
+                            <div class="display-4 fw-mono text-primary fw-bold" id="countdown-timer">--</div>
+                            <span class="ms-2 fs-4 text-muted">seconds</span>
+                        </div>
+                        <div class="progress mt-3" style="height: 6px;">
+                            <div id="countdown-progress" class="progress-bar progress-bar-striped progress-bar-animated bg-primary" role="progressbar" style="width: 100%"></div>
+                        </div>
+                    </div>
+
+                    <div class="d-grid gap-3">
+                        <button id="refresh-btn" class="btn btn-primary py-3 fw-bold shadow-sm" disabled>
+                            <i class="bi bi-arrow-clockwise me-2"></i>Refresh Page
+                        </button>
+                        <a href="{{ url_for('todo') }}" class="btn btn-link text-decoration-none text-muted small">
+                            Return to Tasks
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script nonce="{{ g.nonce }}">
+    document.addEventListener('DOMContentLoaded', function() {
+        const timerDisplay = document.getElementById('countdown-timer');
+        const progressBar = document.getElementById('countdown-progress');
+        const refreshBtn = document.getElementById('refresh-btn');    
+        let waitSeconds = 60; 
+        const limitStr = "{{ limit_info }}".toLowerCase();
+        if (limitStr.includes('minute')) waitSeconds = 60;
+        else if (limitStr.includes('hour')) waitSeconds = 3600;
+        else if (limitStr.includes('second')) waitSeconds = 10;
+        const startTime = Date.now();
+        const endTime = startTime + (waitSeconds * 1000);
+
+        function updateTimer() {
+            const now = Date.now();
+            const remainingTotal = Math.max(0, endTime - now);
+            const secondsLeft = Math.ceil(remainingTotal / 1000);
+            timerDisplay.textContent = secondsLeft;
+            const percentage = (remainingTotal / (waitSeconds * 1000)) * 100;
+            progressBar.style.width = percentage + '%';
+
+            if (remainingTotal <= 0) {
+                timerDisplay.textContent = "0";
+                progressBar.style.width = '0%';
+                progressBar.classList.remove('progress-bar-animated');
+                refreshBtn.disabled = false;
+                refreshBtn.innerHTML = '<i class="bi bi-check-circle-fill me-2"></i>Ready to Retry';
+                return;
+            }
+            requestAnimationFrame(updateTimer);
+        }
+        refreshBtn.addEventListener('click', () => {
+            location.reload();
+        });
+        updateTimer();
+    });
+</script>
+{% endblock %}

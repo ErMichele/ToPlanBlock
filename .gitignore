@@ -11,3 +11,4 @@ instance/
 static/uploads/*
 # Logs
 *.log
+*.txt
