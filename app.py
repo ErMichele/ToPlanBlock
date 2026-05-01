@@ -297,7 +297,7 @@ def edit(todo_id):
 @app.post('/todo/bulk')
 @login_required
 def bulk_action():
-    todo_ids = request.form.getlist('todo_ids')
+    todo_ids = [int(tid) for tid in request.form.getlist('todo_ids') if tid.isdigit()]
     action = request.form.get('action')
     
     if not todo_ids:
