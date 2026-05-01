@@ -347,7 +347,11 @@ def bulk_action():
         return {"status": "success", "message": msg}, 200
         
     flash(msg, 'info')
-    return redirect(url_for('todo', ...))    
+    return redirect(url_for('todo', 
+                            category=request.args.get('category', ''), 
+                            page=request.args.get('page', 1),
+                            search=request.args.get('search', ''),
+                            status=request.args.get('status', 'all')))
 
 @app.post('/update_preferences')
 @login_required
