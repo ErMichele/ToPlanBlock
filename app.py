@@ -31,10 +31,11 @@ app = Flask(__name__, static_folder='static', template_folder='templates')
 app.config['SECRET_KEY'] = os.getenv("SECRET_KEY", "secure-fallback-key-for-local-dev")
 IS_PROD = os.getenv("BRANCH") == "production"
 
+database_url = os.getenv('DEV_DATABASE_URL', 'sqlite:///todo.db')
+
 if IS_PROD:
-    database_url = os.getenv('DATABASE_URL')
+    database_url = os.getenv('PRODUCTION_DATABASE_URL')
 else:
-    database_url = 'sqlite:///todo.db'
     UPLOAD_FOLDER = os.path.join('static', 'uploads', 'profile_pics')
     os.makedirs(os.path.join(app.root_path, UPLOAD_FOLDER), exist_ok=True)
 
