@@ -188,7 +188,7 @@ class TodoAJAXManager {
                 window.showToast(data.error || "An error occurred.", "danger");
             }
         } catch (error) {
-            this.showToast("Network error. Please try again.", "danger");
+            window.showToast("Network error. Please try again.", "danger");
         } finally {
             this.showLoading(false);
         }
