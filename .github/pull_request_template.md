@@ -19,6 +19,9 @@ This update focuses on **[describe the main goal of this release]**, thanks to *
 ## Fixed
 - **Bug**: Explain the bug that occurred and how it was resolved.
 
+## Removed
+- **Scrapped**: Notify what was removed.
+
 ### Planned
 - [x] Feature coming in the next updates
 - [ ] Feature coming in future updates
