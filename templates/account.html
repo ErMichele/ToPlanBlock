@@ -30,8 +30,7 @@
                 <div class="position-relative">
                     <img src="{{ current_user.profile_pic_url or '' }}" alt="Profile Picture"
                       class="rounded-circle shadow-sm border {% if not current_user.profile_pic_url %}d-none{% endif %}"
-                      id="profile-img" style="width: 90px; height: 90px; object-fit: cover;"
-                      onerror="this.classList.add('d-none'); document.getElementById('fallback-avatar').classList.remove('d-none');">
+                      id="profile-img" style="width: 90px; height: 90px; object-fit: cover;">
 
                     <div id="fallback-avatar"
                       class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center shadow-sm {% if current_user.profile_pic_url %}d-none{% endif %}"

@@ -3,13 +3,48 @@ document.addEventListener('DOMContentLoaded', function () {
     const unsavedModal = new bootstrap.Modal(document.getElementById('unsavedChangesModal'))
     let targetUrl = '';
     let skipCheck = false;
+    const fileInput = infoForm.querySelector('input[name="picture"]');
+    const profileImg = document.getElementById('profile-img');
+    const fallbackAvatar = document.getElementById('fallback-avatar');
+    const initialImgState = {
+        src: profileImg.src,
+        imgHidden: profileImg.classList.contains('d-none'),
+        fallbackHidden: fallbackAvatar.classList.contains('d-none')
+    };
+
+    const handleImageError = () => {
+        profileImg.classList.add('d-none');
+        fallbackAvatar.classList.remove('d-none');
+    };
+
+    profileImg.addEventListener('error', handleImageError);
+
+    if (profileImg.complete && profileImg.naturalWidth === 0) {
+        handleImageError();
+    }
+
+    fileInput.addEventListener('change', function() {
+        if (this.files && this.files[0]) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                profileImg.src = e.target.result;
+                profileImg.classList.remove('d-none');
+                fallbackAvatar.classList.add('d-none');
+            };
+            reader.readAsDataURL(this.files[0]);
+        } else {
+            profileImg.src = initialImgState.src;
+            initialImgState.imgHidden ? profileImg.classList.add('d-none') : profileImg.classList.remove('d-none');
+            initialImgState.fallbackHidden ? fallbackAvatar.classList.add('d-none') : fallbackAvatar.classList.remove('d-none');
+        }
+    });
 
     const getFormState = (form) => {
         const formData = new FormData(form);
         const state = {};
         for (let [key, value] of formData.entries()) {
-            if (['current_password', 'csrf_token', 'picture'].includes(key)) continue;
-            state[key] = value;
+            if (['current_password', 'csrf_token'].includes(key)) continue;
+            state[key] = (key === 'picture') ? (value.name || "") : value;
         }
         return JSON.stringify(state);
     };
