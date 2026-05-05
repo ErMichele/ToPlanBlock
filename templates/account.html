@@ -192,6 +192,26 @@
   </div>
 </div>
 
+<div class="modal fade" id="cropperModal" tabindex="-1" aria-labelledby="cropperModalLabel" aria-hidden="true" data-bs-backdrop="static">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold" id="cropperModalLabel">Adjust Profile Picture</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-0 overflow-hidden">
+        <div class="img-container" style="max-height: 400px;">
+          <img id="cropper-image" src="" style="max-width: 100%;">
+        </div>
+      </div>
+      <div class="modal-footer border-0">
+        <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" id="saveCropBtn" class="btn btn-primary rounded-pill px-4">Crop & Use</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script nonce="{{ g.nonce }}">
   const CSRF_TOKEN = "{{ csrf_token() }}";
   const PREF_URL = "{{ url_for('update_preferences') }}";
