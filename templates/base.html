@@ -6,9 +6,51 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}ToPlanBlock{% endblock %}</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
+  <title>{% block title %}ToPlanBlock — Task Manager by ErMichele{% endblock %}</title>
+
+  <meta name="description" content="ToPlanBlock — A clean, efficient task manager with categories, progress tracking, and smart filtering. Built as an educational project by ErMichele.">
+  <meta name="keywords" content="ToPlanBlock, task manager, todo app, productivity, planner, categories, student project, ErMichele">
+  <meta name="author" content="Michele Acciuffi (ErMichele)">
+  <link rel="canonical" href="{{ request.url }}">
+
+  <meta name="robots" content="index, follow">
+  <meta name="googlebot" content="index, follow">
+
+  <meta property="og:title" content="ToPlanBlock — Organize Your Tasks Smarter">
+  <meta property="og:description" content="A modern task manager with categories, filtering, and progress tracking. Built by ErMichele.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="{{ request.url }}">
+  <meta property="og:image" content="{{ url_for('static', filename='favicon.png', _external=True) }}">
+  <meta property="og:site_name" content="ToPlanBlock">
+
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="ToPlanBlock — Smart Task Manager">
+  <meta name="twitter:description" content="A clean and intuitive task manager built by ErMichele.">
+  <meta name="twitter:image" content="{{ url_for('static', filename='favicon.png', _external=True) }}">
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "ToPlanBlock",
+    "alternateName": "ToPlanBlock Task Manager",
+    "applicationCategory": "Productivity",
+    "operatingSystem": "Web",
+    "creator": {
+      "@type": "Person",
+      "name": "Michele Acciuffi",
+      "alternateName": "ErMichele",
+      "url": "https://ermichele.github.io/"
+    },
+    "description": "A clean, efficient task manager with categories, progress tracking, and smart filtering.",
+    "url": "{{ request.url_root }}",
+    "image": "{{ url_for('static', filename='favicon.png', _external=True) }}",
+    "codeRepository": "https://github.com/ermichele/toplanblock",
+    "license": "https://opensource.org/licenses/MIT"
+  }
+  </script>
+
   <script nonce="{{ g.nonce }}">
     (function () {
       const html = document.documentElement;
@@ -19,7 +61,12 @@
       }
     })();
   </script>
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css')}}">
   <link rel="icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}">
 </head>
@@ -114,6 +161,10 @@
       <p class="small text-muted mb-3">We only use essential technical cookies.</p>
       <button id="accept-cookies-btn" class="btn btn-sm btn-primary w-100 rounded-pill">Got it</button>
     </div>
+  </div>
+
+  <div id="loading-overlay" class="d-none position-fixed top-0 start-0 w-100 h-100 d-flex justify-content-center align-items-center" style="background: rgba(0,0,0,0.15); backdrop-filter: blur(4px); z-index: 9999;">
+    <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;"></div>
   </div>
 
   <script src="{{ url_for('static', filename='js/main.js') }}"></script>
