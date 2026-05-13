@@ -2,291 +2,434 @@
  * TagInputManager - A reusable class for managing interactive tag inputs
  * Supports autocomplete, keyboard navigation, and hidden field synchronization.
  */
+
 class TagInputManager {
-    constructor(container) {
-        this.container = container;
-        this.tagContainer = container.querySelector('.tag-input-container');
-        this.tagInput = container.querySelector('.tag-input-field');
-        this.hiddenInput = container.querySelector('.tags-hidden-input');
-        this.suggestions = container.querySelector('.suggestions-list');
-        
-        this.tags = this.hiddenInput.value 
-            ? this.hiddenInput.value.split(',').filter(t => t.trim() !== '').map(t => t.toUpperCase()) 
+    constructor(wrapper) {
+        this.wrapper = wrapper;
+        this.container = wrapper.querySelector('.tag-input-container');
+        this.input = wrapper.querySelector('.tag-input-field');
+        this.hiddenInput = wrapper.querySelector('.tags-hidden-input');
+        this.suggestions = wrapper.querySelector('.suggestions-list');
+
+        this.tags = this.hiddenInput.value
+            ? this.hiddenInput.value
+                .split(',')
+                .map(t => t.trim())
+                .filter(Boolean)
             : [];
 
         this.init();
     }
 
     init() {
-        // Render initial tags
         this.renderTags();
 
-        // Add Tag on Enter or Comma
-        this.tagInput.addEventListener('keydown', (e) => {
+        this.input.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' || e.key === ',') {
                 e.preventDefault();
-                this.addTag(this.tagInput.value);
-            } else if (e.key === 'Backspace' && this.tagInput.value === '' && this.tags.length > 0) {
+                this.addTag(this.input.value);
+            }
+
+            if (
+                e.key === 'Backspace' &&
+                this.input.value.trim() === '' &&
+                this.tags.length
+            ) {
                 this.removeTag(this.tags[this.tags.length - 1]);
             }
         });
 
-        // Focus input when clicking the container
-        this.tagContainer.addEventListener('click', (e) => {
-            if (e.target.classList.contains('remove-tag')) {
-                this.removeTag(e.target.dataset.item);
-            } else {
-                this.tagInput.focus();
-            }
+        this.input.addEventListener('input', () => {
+            this.filterSuggestions();
         });
 
-        // Handle Autocomplete filtering
-        this.tagInput.addEventListener('input', () => {
-            const val = this.tagInput.value.toUpperCase();
-            const items = this.suggestions.querySelectorAll('.suggestion-item');
-            let count = 0;
-
-            items.forEach(item => {
-                const catName = item.dataset.value.toUpperCase();
-                if (val && catName.includes(val) && !this.tags.includes(catName)) {
-                    item.style.display = 'block';
-                    count++;
-                } else {
-                    item.style.display = 'none';
-                }
-            });
-            this.suggestions.style.display = count > 0 ? 'block' : 'none';
-        });
-
-        // Select suggestion
         this.suggestions.addEventListener('click', (e) => {
             const item = e.target.closest('.suggestion-item');
-            if (item) {
-                this.addTag(item.dataset.value);
-                this.tagInput.focus();
-            }
+
+            if (!item) return;
+
+            this.addTag(item.dataset.value);
+            this.input.focus();
         });
 
-        // Close suggestions when clicking outside
+        this.container.addEventListener('click', (e) => {
+            const removeBtn = e.target.closest('.remove-tag');
+
+            if (removeBtn) {
+                this.removeTag(removeBtn.dataset.item);
+                return;
+            }
+
+            this.input.focus();
+        });
+
         document.addEventListener('click', (e) => {
-            if (!this.container.contains(e.target)) {
-                this.suggestions.style.display = 'none';
+            if (!this.wrapper.contains(e.target)) {
+                this.hideSuggestions();
             }
         });
 
-        // Ensure tags are added if user submits form while typing a tag
-        const form = this.container.closest('form');
+        const form = this.wrapper.closest('form');
+
         if (form) {
             form.addEventListener('submit', () => {
-                if (this.tagInput.value.trim() !== '') {
-                    this.addTag(this.tagInput.value);
+                if (this.input.value.trim()) {
+                    this.addTag(this.input.value);
                 }
             });
         }
     }
 
-    updateHiddenInput() {
+    normalize(tag) {
+        return tag.trim().toUpperCase();
+    }
+
+    addTag(tag) {
+        const normalized = this.normalize(tag);
+
+        if (!normalized) return;
+
+        if (!this.tags.includes(normalized)) {
+            this.tags.push(normalized);
+            this.update();
+        }
+
+        this.input.value = '';
+        this.hideSuggestions();
+    }
+
+    removeTag(tag) {
+        this.tags = this.tags.filter(t => t !== tag);
+        this.update();
+    }
+
+    update() {
+        this.renderTags();
+        this.syncHiddenInput();
+    }
+
+    syncHiddenInput() {
         this.hiddenInput.value = this.tags.join(',');
     }
 
     renderTags() {
-        // Clear existing badges (but keep the input field)
-        const badges = this.tagContainer.querySelectorAll('.tag-badge');
-        badges.forEach(b => b.remove());
+        this.container
+            .querySelectorAll('.tag-badge')
+            .forEach(el => el.remove());
 
-        // Create new badges
-        this.tags.forEach(label => {
-            const tagEl = document.createElement('div');
-            tagEl.className = 'tag-badge';
-            tagEl.innerHTML = `<span>${label}</span><span class="remove-tag" data-item="${label}">&times;</span>`;
-            this.tagContainer.insertBefore(tagEl, this.tagInput);
+        this.tags.forEach(tag => {
+            const badge = document.createElement('div');
+            badge.className =
+                'tag-badge badge rounded-pill bg-primary text-white d-flex align-items-center gap-2 px-3 py-2';
+
+            badge.innerHTML = `
+                <span>${tag}</span>
+                <span 
+                    class="remove-tag cursor-pointer"
+                    role="button"
+                    data-item="${tag}"
+                >&times;</span>
+            `;
+
+            this.container.insertBefore(badge, this.input);
         });
     }
 
-    addTag(label) {
-        label = label.trim().toUpperCase();
-        if (label && !this.tags.includes(label)) {
-            this.tags.push(label);
-            this.renderTags();
-            this.updateHiddenInput();
-        }
-        this.tagInput.value = '';
-        this.suggestions.style.display = 'none';
+    filterSuggestions() {
+        const query = this.normalize(this.input.value);
+
+        let visibleCount = 0;
+
+        this.suggestions
+            .querySelectorAll('.suggestion-item')
+            .forEach(item => {
+                const value = this.normalize(item.dataset.value);
+
+                const show =
+                    query &&
+                    value.includes(query) &&
+                    !this.tags.includes(value);
+
+                item.style.display = show ? 'block' : 'none';
+
+                if (show) visibleCount++;
+            });
+
+        this.suggestions.style.display =
+            visibleCount > 0 ? 'block' : 'none';
     }
 
-    removeTag(label) {
-        this.tags = this.tags.filter(t => t !== label);
-        this.renderTags();
-        this.updateHiddenInput();
+    hideSuggestions() {
+        this.suggestions.style.display = 'none';
     }
 }
 
+/**
+ * TodoAJAXManager - Handles AJAX interactions for the ToDo app
+ * Intercepts form submissions and link clicks to perform AJAX requests,
+ * updates the UI dynamically, and manages loading states and toasts.
+ */
 class TodoAJAXManager {
     constructor() {
         this.overlay = document.getElementById('loading-overlay');
-        this.toastEl = document.getElementById('liveToast');
-        this.toastMessage = document.getElementById('toast-message');
-        this.bsToast = new bootstrap.Toast(this.toastEl);
-        this.initEventListeners();
+
+        this.init();
     }
 
-    showLoading(show) {
-        if (show) {
-            this.overlay.classList.remove('d-none');
-        } else {
-            this.overlay.classList.add('d-none');
-        }
+    init() {
+        this.bindGlobalEvents();
+        this.bindBulkLogic();
     }
 
-    initEventListeners() {
+    bindGlobalEvents() {
+        document.addEventListener('hidden.bs.modal', () => {
+            document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
+
+            document.body.classList.remove('modal-open');
+            document.body.style.removeProperty('padding-right');
+            document.body.style.removeProperty('overflow');
+        });
+
         document.addEventListener('submit', (e) => {
             const form = e.target;
-            const isTodoForm = form.matches('#todo-form') || 
-                               form.closest('.modal-content') || 
-                               form.matches('#bulk-form') ||
-                               form.getAttribute('action')?.includes('/toggle') ||
-                               form.getAttribute('action')?.includes('/delete');
 
-            if (isTodoForm) {
-                e.preventDefault();
-                this.handleAction(form);
+            const ajaxForms = [
+                '#todo-form',
+                '#bulk-form',
+                '#ajax-search-form'
+            ];
+
+            const shouldHandle =
+                ajaxForms.some(sel => form.matches(sel)) ||
+                form.action?.includes('/toggle') ||
+                form.action?.includes('/delete') ||
+                form.action?.includes('/edit');
+
+            if (!shouldHandle) return;
+
+            e.preventDefault();
+
+            this.submitForm(form);
+        });
+
+        document.addEventListener('click', (e) => {
+            const link = e.target.closest('.ajax-filter-trigger');
+
+            if (!link) return;
+
+            e.preventDefault();
+
+            this.loadPage(link.href);
+        });
+
+        document.addEventListener('show.bs.modal', (event) => {
+            const button = event.relatedTarget;
+
+            if (!button) return;
+
+            const url = button.dataset.url;
+            const form = document.getElementById('confirmDeleteForm');
+
+            if (url && form) {
+                form.action = url;
             }
         });
     }
 
-    async handleAction(form) {
+    async submitForm(form) {
         this.showLoading(true);
-        const formData = new FormData(form);
-        let url = form.getAttribute('action') || window.location.href;
-        
-        if (form.id === 'bulk-form') {
-            const checkedIds = document.querySelectorAll('.todo-checkbox:checked');
-            checkedIds.forEach(cb => formData.append('todo_ids', cb.value));
-            if (document.activeElement && document.activeElement.name === 'action') {
-                formData.append('action', document.activeElement.value);
-            }
-        }
 
         try {
-            const response = await fetch(url, {
-                method: 'POST',
+            const formData = new FormData(form);
+
+            if (form.id === 'bulk-form') {
+                document
+                    .querySelectorAll('.todo-checkbox:checked')
+                    .forEach(cb => {
+                        formData.append('todo_ids', cb.value);
+                    });
+
+                if (
+                    document.activeElement &&
+                    document.activeElement.name === 'action'
+                ) {
+                    formData.append(
+                        'action',
+                        document.activeElement.value
+                    );
+                }
+            }
+
+            const response = await fetch(form.action || window.location.href, {
+                method: form.method || 'POST',
                 body: formData,
-                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
             });
 
-            const data = await response.json();
+            const contentType = response.headers.get('content-type');
 
-            if (response.ok) {
-                const openModalEl = document.querySelector('.modal.show');
-                if (openModalEl) {
-                    bootstrap.Modal.getInstance(openModalEl)?.hide();
+            if (contentType?.includes('application/json')) {
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Request failed');
                 }
-                
-                await this.refreshUI();
-                window.showToast(data.message || "Updated!", "success");
+
+                await this.refreshCurrentPage();
+
+                this.closeOpenModal();
+
+                window.showToast?.(
+                    data.message || 'Success!',
+                    'success'
+                );
             } else {
-                window.showToast(data.error || "An error occurred.", "danger");
+                const html = await response.text();
+                this.replacePageContent(html);
             }
-        } catch (error) {
-            window.showToast("Network error. Please try again.", "danger");
+        } catch (err) {
+            console.error(err);
+
+            window.showToast?.(
+                err.message || 'Something went wrong.',
+                'danger'
+            );
         } finally {
             this.showLoading(false);
         }
     }
 
-    async refreshUI() {
-        const url = window.location.href;
+    async loadPage(url) {
+        this.showLoading(true);
+
         try {
-            const response = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+            const response = await fetch(url, {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+
             const html = await response.text();
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(html, 'text/html');
 
-            const oldBar = document.querySelector('.progress-bar');
-            const newBarContent = doc.querySelector('.progress-bar');
-            
-            let oldWidth = "0%";
-            if (oldBar) oldWidth = oldBar.style.width;
+            this.replacePageContent(html);
 
-            document.getElementById('sidebar-container').innerHTML = doc.getElementById('sidebar-container').innerHTML;
-            document.getElementById('tasks-container').innerHTML = doc.getElementById('tasks-container').innerHTML;
+            window.history.pushState({}, '', url);
+        } catch (err) {
+            console.error(err);
 
-            if (newBarContent) {
-                const updatedBar = document.querySelector('.progress-bar');
-                const targetWidth = updatedBar.style.width;
-                updatedBar.style.transition = 'none';
-                updatedBar.style.width = oldWidth;
-                updatedBar.offsetHeight; 
-                updatedBar.style.transition = '';
-                updatedBar.style.width = targetWidth;
-            }
-
-            document.querySelectorAll('.tag-input-wrapper').forEach(w => new TagInputManager(w));
-            this.rebindBulkLogic();
-
-        } catch (error) {
-            console.error("Refresh failed:", error);
+            window.showToast?.(
+                'Failed to load content.',
+                'danger'
+            );
+        } finally {
+            this.showLoading(false);
         }
     }
 
-    rebindBulkLogic() {
+    async refreshCurrentPage() {
+        await this.loadPage(window.location.href);
+    }
+
+    replacePageContent(html) {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+
+        const sidebar = document.getElementById('sidebar-container');
+        const tasks = document.getElementById('tasks-container');
+
+        const newSidebar = doc.getElementById('sidebar-container');
+        const newTasks = doc.getElementById('tasks-container');
+
+        if (sidebar && newSidebar) {
+            sidebar.innerHTML = newSidebar.innerHTML;
+        }
+
+        if (tasks && newTasks) {
+            tasks.innerHTML = newTasks.innerHTML;
+        }
+
+        this.reinitializeUI();
+    }
+
+    reinitializeUI() {
+        document
+            .querySelectorAll('.tag-input-wrapper')
+            .forEach(wrapper => {
+                new TagInputManager(wrapper);
+            });
+
+        this.bindBulkLogic();
+    }
+
+    bindBulkLogic() {
         const selectAll = document.getElementById('selectAll');
         const checkboxes = document.querySelectorAll('.todo-checkbox');
-        const bulkActionsBtn = document.getElementById('bulkActionsBtn');
+        const bulkBtn = document.getElementById('bulkActionsBtn');
+
+        const updateState = () => {
+            const anyChecked = [...checkboxes].some(cb => cb.checked);
+
+            if (bulkBtn) {
+                bulkBtn.disabled = !anyChecked;
+            }
+
+            if (selectAll) {
+                selectAll.checked =
+                    checkboxes.length > 0 &&
+                    [...checkboxes].every(cb => cb.checked);
+            }
+        };
 
         if (selectAll) {
             selectAll.addEventListener('change', () => {
-                checkboxes.forEach(cb => cb.checked = selectAll.checked);
-                if (bulkActionsBtn) bulkActionsBtn.disabled = ![...checkboxes].some(c => c.checked);
+                checkboxes.forEach(cb => {
+                    cb.checked = selectAll.checked;
+                });
+
+                updateState();
             });
         }
+
         checkboxes.forEach(cb => {
-            cb.addEventListener('change', () => {
-                if (selectAll) selectAll.checked = [...checkboxes].every(c => c.checked);
-                if (bulkActionsBtn) bulkActionsBtn.disabled = ![...checkboxes].some(c => c.checked);
-            });
+            cb.addEventListener('change', updateState);
         });
+
+        updateState();
+    }
+
+    closeOpenModal() {
+        document.querySelectorAll('.modal.show').forEach(modalEl => {
+            const modal = bootstrap.Modal.getInstance(modalEl);
+
+            if (modal) {
+                modal.hide();
+            }
+        });
+
+        setTimeout(() => {
+            document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
+
+            document.body.classList.remove('modal-open');
+            document.body.style.removeProperty('padding-right');
+            document.body.style.removeProperty('overflow');
+        }, 300);
+    }
+
+    showLoading(show) {
+        if (!this.overlay) return;
+
+        this.overlay.classList.toggle('d-none', !show);
     }
 }
 
-document.addEventListener('DOMContentLoaded', function () {
-    const wrappers = document.querySelectorAll('.tag-input-wrapper');
-    wrappers.forEach(wrapper => new TagInputManager(wrapper));
-
-    document.addEventListener('show.bs.modal', function (event) {
-        const button = event.relatedTarget; 
-        if (!button) return;
-        const url = button.getAttribute('data-url');
-        const form = document.getElementById('confirmDeleteForm');
-        if (form && url) form.setAttribute('action', url);
-    });
-
-    const selectAll = document.getElementById('selectAll');
-    const checkboxes = document.querySelectorAll('.todo-checkbox');
-    const bulkActionsBtn = document.getElementById('bulkActionsBtn');
-
-    if (selectAll) {
-        selectAll.addEventListener('change', function() {
-            checkboxes.forEach(cb => cb.checked = selectAll.checked);
-            updateBulkButton();
+document.addEventListener('DOMContentLoaded', () => {
+    document
+        .querySelectorAll('.tag-input-wrapper')
+        .forEach(wrapper => {
+            new TagInputManager(wrapper);
         });
-    }
-
-    checkboxes.forEach(cb => {
-        cb.addEventListener('change', function() {
-            if (selectAll) {
-                selectAll.checked = [...checkboxes].every(c => c.checked);
-            }
-            updateBulkButton();
-        });
-    });
-
-    function updateBulkButton() {
-        if (bulkActionsBtn) {
-            const anyChecked = [...checkboxes].some(c => c.checked);
-            bulkActionsBtn.disabled = !anyChecked;
-        }
-    }
 
     new TodoAJAXManager();
 });

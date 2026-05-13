@@ -216,3 +216,14 @@ main {
     margin-bottom: 0;
     display: inline; 
 }
+
+.toggle-notes-btn .bi-chevron-down {
+    transition: transform 0.25s ease-in-out;
+    display: inline-block;
+  }
+  .toggle-notes-btn[aria-expanded="true"] .bi-chevron-down {
+    transform: rotate(180deg);
+  }
+  .task-notes-panel {
+    transition: all 0.3s ease-in-out;
+  }

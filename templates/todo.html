@@ -18,6 +18,11 @@
             <input class="form-control bg-body-tertiary border-0 p-2 px-3" type="text" name="task" placeholder="What needs to be done?" required>
           </div>
 
+          <div class="mb-3">
+            <label class="form-label small fw-bold text-uppercase text-muted">Notes (Markdown Supported)</label>
+            <textarea class="form-control bg-body-tertiary border-0 p-2 px-3" name="notes" rows="3" placeholder="Add optional instructions or details..."></textarea>
+          </div>
+
           <div class="mb-4 position-relative tag-input-wrapper">
             <label class="form-label small fw-bold text-uppercase text-muted">Categories</label>
             <div class="tag-input-container bg-body-tertiary border-0 rounded-3">
@@ -45,12 +50,12 @@
         <h6 class="card-title mb-0 fw-bold"><i class="bi bi-filter-left me-2 text-primary"></i>Categories</h6>
       </div>
       <div class="card-body p-3">
-        <div class="d-flex flex-wrap gap-2">
+        <div class="d-flex flex-wrap gap-2" id="category-badges-box">
           {% set active_list = selected_category.upper().split(',') if selected_category else [] %}
           {% for c in categories %}
             {% set new_filter = toggle_cat(selected_category, c.name) %}
             <a href="{{ url_for('todo', category=new_filter, search=search_query, status=status_filter) }}"
-              class="badge text-decoration-none px-3 py-2 rounded-pill border {{ 'bg-primary text-white border-primary' if c.name.upper() in active_list else 'bg-body-secondary text-body border-secondary-subtle' }}">
+              class="badge text-decoration-none px-3 py-2 rounded-pill border ajax-filter-trigger {{ 'bg-primary text-white border-primary' if c.name.upper() in active_list else 'bg-body-secondary text-body border-secondary-subtle' }}">
               {{ c.name }}
               {% if c.name.upper() in active_list %} <i class="bi bi-x-circle-fill ms-1"></i> {% endif %}
             </a>
@@ -62,7 +67,7 @@
         {% if selected_category %}
         <div class="mt-3 pt-3 border-top text-center">
           <a href="{{ url_for('todo', search=search_query, status=status_filter) }}"
-            class="btn btn-sm btn-link text-danger text-decoration-none p-0 small fw-bold">
+            class="btn btn-sm btn-link text-danger text-decoration-none p-0 small fw-bold ajax-filter-trigger">
             <i class="bi bi-trash3 me-1"></i>Clear all filters
           </a>
         </div>
@@ -77,7 +82,7 @@
       <div class="card-body p-3">
         <div class="row g-3 align-items-center">
           <div class="col-md-7">
-            <form method="GET" action="{{ url_for('todo') }}" class="d-flex gap-2">
+            <form method="GET" action="{{ url_for('todo') }}" class="d-flex gap-2" id="ajax-search-form">
               <input type="hidden" name="category" value="{{ selected_category }}">
               <input type="hidden" name="status" value="{{ status_filter }}">
               <div class="input-group">
@@ -88,10 +93,10 @@
             </form>
           </div>
           <div class="col-md-5">
-            <div class="nav nav-pills bg-body-tertiary p-1 rounded-pill w-100 justify-content-between" role="group">
+            <div class="nav nav-pills bg-body-tertiary p-1 rounded-pill w-100 justify-content-between" role="group" id="status-pills-box">
               {% for stat in ['all', 'active', 'completed'] %}
               <a href="{{ url_for('todo', category=selected_category, status=stat, search=search_query) }}"
-                class="nav-link flex-fill text-center rounded-pill py-1 small fw-bold {{ 'active shadow-sm' if (status_filter == stat or (stat == 'all' and not status_filter)) else 'text-body' }}">
+                class="nav-link flex-fill text-center rounded-pill py-1 small fw-bold ajax-filter-trigger {{ 'active shadow-sm' if (status_filter == stat or (stat == 'all' and not status_filter)) else 'text-body' }}">
                 {{ stat.capitalize() if stat != 'completed' else 'Done' }}
               </a>
               {% endfor %}
@@ -180,14 +185,34 @@
             </div>
             
             <div class="col">
-              <div class="d-flex flex-wrap gap-1 mb-1">
+              <div class="d-flex flex-wrap align-items-center gap-1 mb-1">
                 {% for cat in t.categories %}
                 <span class="badge rounded-pill bg-primary-subtle text-primary border border-primary-subtle" style="font-size: 0.6rem;">{{ cat.name }}</span>
                 {% endfor %}
+                
+                {% if t.notes %}
+                <button class="btn btn-sm btn-link text-decoration-none p-0 ms-2 toggle-notes-btn small text-muted font-monospace" 
+                        type="button" 
+                        data-bs-toggle="collapse" 
+                        data-bs-target="#collapseNotes{{ t.id }}" 
+                        aria-expanded="false" 
+                        aria-controls="collapseNotes{{ t.id }}"
+                        style="font-size: 0.75rem; box-shadow: none;">
+                  <i class="bi bi-chevron-down me-1"></i>Notes
+                </button>
+                {% endif %}
               </div>
               <div class="task-markdown-content {% if t.completed %}text-decoration-line-through text-muted{% endif %} fw-medium text-body">
                 {{ t.task | markdown }}
               </div>
+
+              {% if t.notes %}
+              <div class="collapse task-notes-panel" id="collapseNotes{{ t.id }}">
+                <div class="mt-2 pt-2 border-top text-muted small bg-light-subtle p-2 rounded">
+                  {{ t.notes | markdown }}
+                </div>
+              </div>
+              {% endif %}
             </div>
 
             <div class="col-auto d-flex gap-1">
@@ -236,6 +261,11 @@
                   <input class="form-control bg-body-tertiary border-0" type="text" name="task" value="{{ t.task }}" required>
                 </div>
 
+                <div class="mb-3">
+                  <label class="form-label fw-bold">Notes (Markdown Supported)</label>
+                  <textarea class="form-control bg-body-tertiary border-0" name="notes" rows="3">{{ t.notes if t.notes else '' }}</textarea>
+                </div>
+
                 <div class="mb-1 position-relative tag-input-wrapper">
                   <label class="form-label fw-bold">Categories</label>
                   <div class="tag-input-container bg-body-tertiary border-0 rounded-3">
@@ -272,13 +302,13 @@
     <nav class="mt-4">
       <ul class="pagination justify-content-center">
         <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
-          <a class="page-link rounded-start-pill border-0 bg-body shadow-sm me-1"
+          <a class="page-link rounded-start-pill border-0 bg-body shadow-sm me-1 ajax-filter-trigger"
             href="{{ url_for('todo', category=selected_category, page=pagination.prev_num, search=search_query, status=status_filter) if pagination.has_prev else '#' }}"><i class="bi bi-chevron-left"></i></a>
         </li>
         {% for page_num in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
         {% if page_num %}
         <li class="page-item {% if page_num == pagination.page %}active{% endif %}">
-          <a class="page-link border-0 shadow-sm mx-1 rounded-3 {{ 'bg-primary text-white' if page_num == pagination.page else 'bg-body text-body' }}"
+          <a class="page-link border-0 shadow-sm mx-1 rounded-3 ajax-filter-trigger {{ 'bg-primary text-white' if page_num == pagination.page else 'bg-body text-body' }}"
             href="{{ url_for('todo', category=selected_category, page=page_num, search=search_query, status=status_filter) }}">{{ page_num }}</a>
         </li>
         {% else %}
@@ -286,7 +316,7 @@
         {% endif %}
         {% endfor %}
         <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
-          <a class="page-link rounded-end-pill border-0 bg-body shadow-sm ms-1"
+          <a class="page-link rounded-end-pill border-0 bg-body shadow-sm ms-1 ajax-filter-trigger"
             href="{{ url_for('todo', category=selected_category, page=pagination.next_num, search=search_query, status=status_filter) if pagination.has_next else '#' }}"><i class="bi bi-chevron-right"></i></a>
         </li>
       </ul>
@@ -333,10 +363,6 @@
   </div>
 </div>
 {% endif %}
-
-<div id="loading-overlay" class="d-none position-fixed top-0 start-0 w-100 h-100 d-flex justify-content-center align-items-center" style="background: rgba(0,0,0,0.15); backdrop-filter: blur(4px); z-index: 9999;">
-  <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;"></div>
-</div>
 
 <script src="{{ url_for('static', filename='js/todo.js') }}"></script>
 {% endblock %}
