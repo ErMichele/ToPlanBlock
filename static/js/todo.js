@@ -171,8 +171,6 @@ class TagInputManager {
  */
 class TodoAJAXManager {
     constructor() {
-        this.overlay = document.getElementById('loading-overlay');
-
         this.init();
     }
 
@@ -237,7 +235,7 @@ class TodoAJAXManager {
     }
 
     async submitForm(form) {
-        this.showLoading(true);
+        window.toggleLoading(true);
 
         try {
             const formData = new FormData(form);
@@ -297,12 +295,12 @@ class TodoAJAXManager {
                 'danger'
             );
         } finally {
-            this.showLoading(false);
+            window.toggleLoading(false);
         }
     }
 
     async loadPage(url) {
-        this.showLoading(true);
+        window.toggleLoading(true);
 
         try {
             const response = await fetch(url, {
@@ -324,7 +322,7 @@ class TodoAJAXManager {
                 'danger'
             );
         } finally {
-            this.showLoading(false);
+            window.toggleLoading(false);
         }
     }
 
@@ -415,12 +413,6 @@ class TodoAJAXManager {
             document.body.style.removeProperty('padding-right');
             document.body.style.removeProperty('overflow');
         }, 300);
-    }
-
-    showLoading(show) {
-        if (!this.overlay) return;
-
-        this.overlay.classList.toggle('d-none', !show);
     }
 }
 

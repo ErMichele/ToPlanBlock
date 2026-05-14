@@ -10,6 +10,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const toast = new bootstrap.Toast(el, { delay: 5000 });
         toast.show();
     });
+    document.addEventListener('submit', (e) => {
+        window.toggleLoading(true);
+    });
+    window.addEventListener('beforeunload', () => {
+        window.toggleLoading(true);
+    });
 });
 
 function checkCookies() {
@@ -34,6 +40,13 @@ function initThemeListener() {
         });
     }
 }
+
+window.toggleLoading = function(show) {
+    const overlay = document.getElementById('loading-overlay');
+    if (overlay) {
+        overlay.classList.toggle('d-none', !show);
+    }
+};
 
 window.showToast = function(message, type = 'dark') {
     const container = document.getElementById('mainToastContainer');
