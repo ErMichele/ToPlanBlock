@@ -1,0 +1,101 @@
+/* Variables and Base Layout */
+:root { 
+  --nav-height: 65px;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  padding-top: var(--nav-height);
+}
+
+.navbar { 
+  height: var(--nav-height); 
+  border-bottom: 1px solid var(--bs-border-color-translucent); 
+}
+
+.content-wrapper {
+  flex: 1 0 auto;
+}
+
+/* Common Components */
+.footer-link {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--bs-secondary-color);
+  text-decoration: none;
+  padding: 6px 14px;
+  border-radius: 50px;
+  transition: all 0.2s ease-in-out;
+  background: transparent;
+  display: inline-flex;
+  align-items: center;
+}
+
+.footer-link:hover {
+  color: var(--bs-primary);
+  background-color: var(--bs-tertiary-bg);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+}
+
+[data-theme-pref="dark"] .footer-link:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+#cookie-banner {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  max-width: 350px;
+  z-index: 9999;
+  display: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); 
+}
+
+#loading-overlay {
+  transition: opacity 0.2s ease-in-out;
+}
+
+/* Animations */
+main {
+  animation: fadeInContent 0.4s ease-in-out;
+}
+
+@keyframes fadeInContent {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.toast.showing { animation: slideInRight 0.35s ease-out forwards; }
+.toast.hiding { animation: slideOutRight 0.35s ease-in forwards; }
+
+@keyframes slideInRight {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes slideOutRight {
+    from { transform: translateX(0); opacity: 1; }
+    to { transform: translateX(100%); opacity: 0; }
+}
+
+/* Global Utilities */
+* {
+  scroll-behavior: smooth;
+  scrollbar-width: none;
+}
+*::-webkit-scrollbar { display: none; }
+
+.btn-icon {
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.cursor-pointer { cursor: pointer; }

@@ -1,0 +1,114 @@
+/* Task Cards */
+.task-card {
+  transition: all 0.2s ease-in-out;
+}
+
+.task-card:hover {
+  transform: translateX(4px);
+  background-color: var(--bs-body-secondary);
+}
+
+/* Tag Inputs & Badges */
+.tag-input-container {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  padding: 0.375rem 0.75rem;
+  border: 1px solid var(--bs-border-color);
+  border-radius: 0.375rem;
+  background-color: var(--bs-body-bg); 
+  cursor: text;
+  min-height: 38px;
+  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+.tag-input-container:focus-within {
+  border-color: #86b7fe;
+  outline: 0;
+  box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+.tag-badge {
+  display: inline-flex;
+  align-items: center;
+  background-color: var(--bs-primary);
+  color: #fff;
+  padding: 2px 8px;
+  border-radius: 4px;
+  margin: 2px;
+  font-size: 0.85rem;
+  animation: fadeIn 0.2s ease-in;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: scale(0.9); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.tag-badge .remove-tag {
+  margin-left: 6px;
+  cursor: pointer;
+  font-weight: bold;
+  opacity: 0.8;
+}
+
+.tag-input-field {
+  border: none;
+  outline: none;
+  flex: 1;
+  min-width: 120px;
+  padding: 4px 0;
+  font-size: 0.9rem;
+  background-color: transparent;
+  color: var(--bs-body-color);
+}
+
+/* Suggestions & UI */
+.suggestions-list {
+  position: absolute;
+  z-index: 1050;
+  width: 100%;
+  max-height: 150px;
+  overflow-y: auto;
+  background: var(--bs-body-bg);
+  border: 1px solid var(--bs-border-color);
+  border-top: none;
+  display: none;
+}
+
+.suggestion-item {
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: var(--bs-body-color);
+}
+
+.suggestion-item:hover { background-color: var(--bs-tertiary-bg); }
+
+.progress-bar {
+    transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+/* Markdown & Notes */
+.markdown-content ul, .markdown-content ol {
+  padding-left: 2rem !important;
+  margin-bottom: 1rem;
+}
+
+.task-markdown-content p {
+    margin-bottom: 0;
+    display: inline; 
+}
+
+.toggle-notes-btn .bi-chevron-down {
+    transition: transform 0.25s ease-in-out;
+    display: inline-block;
+}
+
+.toggle-notes-btn[aria-expanded="true"] .bi-chevron-down {
+    transform: rotate(180deg);
+}
+
+.task-notes-panel {
+    transition: all 0.3s ease-in-out;
+}
