@@ -258,7 +258,8 @@ class TodoAJAXManager {
                 }
             }
 
-            const response = await fetch(form.action || window.location.href, {
+            const url = form.getAttribute('action') || window.location.href;
+            const response = await fetch(url, {
                 method: form.method || 'POST',
                 body: formData,
                 headers: {
