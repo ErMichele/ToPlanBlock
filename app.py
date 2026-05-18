@@ -111,6 +111,7 @@ todo_category = db.Table(
 class Todo(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     task = db.Column(db.String(200), nullable=False)
+    notes = db.Column(db.Text, nullable=True)
     completed = db.Column(db.Boolean, default=False)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     categories = db.relationship('Category', secondary=todo_category, back_populates='todos')
@@ -255,10 +256,12 @@ def delete(todo_id):
 def edit(todo_id):
     t = Todo.query.filter_by(id=todo_id, user_id=current_user.id).first_or_404()
     task_text = request.form.get('task', '').strip()
+    notes_text = request.form.get('notes', '').strip()
     cat_list = [c.strip().upper() for c in request.form.get('categories_csv', '').split(',') if c.strip()]
     
     if task_text:
         t.task = task_text
+        t.notes = notes_text if notes_text else None
         t.categories = [] 
         for clean_name in cat_list:
             cat = Category.query.filter_by(name=clean_name).first() or Category(name=clean_name)
@@ -537,10 +540,11 @@ def account():
 def todo():
     if request.method == 'POST':
         task_text = request.form.get('task', '').strip()
+        notes_text = request.form.get('notes', '').strip()
         cat_list = [c.strip().upper() for c in request.form.get('categories_csv', '').split(',') if c.strip()]
         
         if task_text:
-            new_todo = Todo(task=task_text, user_id=current_user.id)
+            new_todo = Todo(task=task_text, notes=notes_text if notes_text else None, user_id=current_user.id)
             for clean_name in cat_list:
                 cat = Category.query.filter_by(name=clean_name).first() or Category(name=clean_name)
                 if cat not in new_todo.categories:
@@ -552,7 +556,7 @@ def todo():
                 return {"status": "success", "message": "Task added!"}, 200
             
             flash('Task added!', 'success')
-            return redirect(url_for('todo', category=request.args.get('category', ''), page=request.args.get('page', 1)))
+            return redirect(url_for('todo', category=request.args.get('category', ''), page=request.args.get('page', 1), search=request.args.get('search', ''), status=request.args.get('status', 'all')))
 
     page = request.args.get('page', 1, type=int)
     selected_category_input = request.args.get('category', '')
