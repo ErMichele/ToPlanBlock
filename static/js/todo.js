@@ -118,9 +118,13 @@ class TagInputManager {
             .forEach(el => el.remove());
 
         this.tags.forEach(tag => {
+            const matchSuggestion = this.suggestions.querySelector(`.suggestion-item[data-value="${tag}"]`);
+            const customBadgeColor = matchSuggestion ? matchSuggestion.dataset.color : '#0d6efd';
+
             const badge = document.createElement('div');
-            badge.className =
-                'tag-badge badge rounded-pill bg-primary text-white d-flex align-items-center gap-2 px-3 py-2';
+            badge.className = 'tag-badge badge rounded-pill d-flex align-items-center gap-2 px-3 py-2';
+            badge.style.backgroundColor = customBadgeColor;
+            badge.style.color = '#fff';
 
             badge.innerHTML = `
                 <span>${tag}</span>
@@ -201,7 +205,8 @@ class TodoAJAXManager {
                 ajaxForms.some(sel => form.matches(sel)) ||
                 form.action?.includes('/toggle') ||
                 form.action?.includes('/delete') ||
-                form.action?.includes('/edit');
+                form.action?.includes('/edit') ||
+                form.action?.includes('/category');
 
             if (!shouldHandle) return;
 
