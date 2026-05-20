@@ -91,7 +91,9 @@ class TagInputManager {
 
         if (!this.tags.includes(normalized)) {
             this.tags.push(normalized);
+            this.lastAddedTag = normalized;
             this.update();
+            this.lastAddedTag = null;
         }
 
         this.input.value = '';
@@ -123,6 +125,11 @@ class TagInputManager {
 
             const badge = document.createElement('div');
             badge.className = 'tag-badge badge rounded-pill d-flex align-items-center gap-2 px-3 py-2';
+            
+            if (tag === this.lastAddedTag) {
+                badge.classList.add('tag-badge-animated');
+            }
+            
             badge.style.backgroundColor = customBadgeColor;
             badge.style.color = '#fff';
 
