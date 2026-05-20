@@ -103,6 +103,7 @@ class Category(db.Model):
     name = db.Column(db.String(100), nullable=False)
     color = db.Column(db.String(7), default='#0d6efd', nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    is_locked = db.Column(db.Boolean, default=False, nullable=False)
     todos = db.relationship('Todo', secondary='todo_category', back_populates='categories')
     
     __table_args__ = (db.UniqueConstraint('name', 'user_id', name='_category_user_uc'),)
@@ -144,6 +145,14 @@ def toggle_category_string(current_str, toggle_name):
         parts.append(toggle_name)
     
     return ",".join(parts)
+
+def cleanup_unlocked_categories(user_id):
+    """Deletes categories with 0 tasks that are not locked."""
+    unlocked_categories = Category.query.filter_by(user_id=user_id, is_locked=False).all()
+    for cat in unlocked_categories:
+        if len(cat.todos) == 0:
+            db.session.delete(cat)
+    db.session.commit()
 
 @cache.cached(timeout=3600) # This function is cached for 1 hour
 def github_api_request():
@@ -215,6 +224,7 @@ def toggle(todo_id):
     if session.get('auto_delete') and t.completed:
         db.session.delete(t)
         db.session.commit()
+        cleanup_unlocked_categories(current_user.id)
         msg = 'Task completed and auto-deleted.'
     else:
         db.session.commit()
@@ -235,6 +245,7 @@ def delete(todo_id):
     t = Todo.query.filter_by(id=todo_id, user_id=current_user.id).first_or_404()
     db.session.delete(t)
     db.session.commit()
+    cleanup_unlocked_categories(current_user.id)
 
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         return {"status": "success", "message": "Task deleted."}, 200
@@ -297,11 +308,12 @@ def bulk_action():
             if auto_delete and t.completed:
                 db.session.delete(t)
         db.session.commit()
-            
+        cleanup_unlocked_categories(current_user.id)
     elif action == 'delete':
         for t in todos:
             db.session.delete(t)
         db.session.commit()
+        cleanup_unlocked_categories(current_user.id)
 
     msg = "Bulk update completed."
     if action == 'delete':
@@ -410,6 +422,13 @@ def edit_category(cat_id):
 @login_required
 def delete_category(cat_id):
     cat = Category.query.filter_by(id=cat_id, user_id=current_user.id).first_or_404()
+    
+    if cat.is_locked:
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return {"status": "error", "message": "Cannot delete a locked category! Unlock it first."}, 400
+        flash('Cannot delete a locked category.', 'danger')
+        return redirect(url_for('todo', category=request.args.get('category'), page=request.args.get('page', 1), search=request.args.get('search', ''), status=request.args.get('status', 'all')))
+    
     db.session.delete(cat)
     db.session.commit()
 
@@ -418,6 +437,24 @@ def delete_category(cat_id):
 
     flash('Category deleted.', 'info')
     return redirect(url_for('todo', category=request.args.get('category') - cat.name, page=request.args.get('page', 1), search=request.args.get('search', ''), status=request.args.get('status', 'all')))
+
+@app.post('/category/<int:cat_id>/toggle_lock')
+@login_required
+def toggle_category_lock(cat_id):
+    cat = Category.query.filter_by(id=cat_id, user_id=current_user.id).first_or_404()
+    cat.is_locked = not cat.is_locked
+    db.session.commit()
+
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        status_msg = f"Category '{cat.name}' locked." if cat.is_locked else f"Category '{cat.name}' unlocked."
+        return {"status": "success", "message": status_msg}, 200
+
+    flash(f"Category status updated.", 'info')
+    return redirect(url_for('todo', 
+                            category=request.args.get('category', ''), 
+                            page=request.args.get('page', 1), 
+                            search=request.args.get('search', ''), 
+                            status=request.args.get('status', 'all')))
 
 @app.post('/update_preferences')
 @login_required
