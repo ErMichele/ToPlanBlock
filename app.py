@@ -131,12 +131,18 @@ def allowed_file(filename):
     """Check if the file has an allowed extension."""
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
+def parse_categories_string(csv_string):
+    """Parses a comma-separated string of categories into a clean, sanitized list of uppercase names."""
+    if not csv_string:
+        return []
+    return [c.strip().upper() for c in csv_string.split(',') if c.strip()]
+
 def toggle_category_string(current_str, toggle_name):
     """Helper to add/remove a category name from a comma-separated string."""
     if not current_str:
         return toggle_name
     
-    parts = [p.strip().upper() for p in current_str.split(',') if p.strip()]
+    parts = parse_categories_string(current_str)
     toggle_name = toggle_name.strip().upper()
     
     if toggle_name in parts:
@@ -262,7 +268,7 @@ def edit(todo_id):
     t = Todo.query.filter_by(id=todo_id, user_id=current_user.id).first_or_404()
     task_text = request.form.get('task', '').strip()
     notes_text = request.form.get('notes', '').strip()
-    cat_list = [c.strip().upper() for c in request.form.get('categories_csv', '').split(',') if c.strip()]
+    cat_list = parse_categories_string(request.form.get('categories_csv', ''))
     
     if task_text:
         t.task = task_text
@@ -334,7 +340,6 @@ def bulk_action():
                             search=request.args.get('search', ''),
                             status=request.args.get('status', 'all')))
 
-# ---------------- Category Management Routes ----------------
 @app.post('/category/add')
 @login_required
 def add_category():
@@ -436,7 +441,8 @@ def delete_category(cat_id):
         return {"status": "success", "message": "Category deleted."}, 200
 
     flash('Category deleted.', 'info')
-    return redirect(url_for('todo', category=request.args.get('category') - cat.name, page=request.args.get('page', 1), search=request.args.get('search', ''), status=request.args.get('status', 'all')))
+    updated_category_param = toggle_category_string(request.args.get('category', ''), cat.name)
+    return redirect(url_for('todo', category=updated_category_param, page=request.args.get('page', 1), search=request.args.get('search', ''), status=request.args.get('status', 'all')))
 
 @app.post('/category/<int:cat_id>/toggle_lock')
 @login_required
@@ -646,7 +652,7 @@ def todo():
     if request.method == 'POST':
         task_text = request.form.get('task', '').strip()
         notes_text = request.form.get('notes', '').strip()
-        cat_list = [c.strip().upper() for c in request.form.get('categories_csv', '').split(',') if c.strip()]
+        cat_list = parse_categories_string(request.form.get('categories_csv', ''))
         
         if task_text:
             new_todo = Todo(task=task_text, notes=notes_text if notes_text else None, user_id=current_user.id)
@@ -676,7 +682,7 @@ def todo():
         q = q.filter(Todo.task.ilike(f"%{search_query}%"))
 
     if selected_category_input:
-        cat_filter_list = [c.strip().upper() for c in selected_category_input.split(',') if c.strip()]
+        cat_filter_list = parse_categories_string(selected_category_input)
         for cat_name in cat_filter_list:
             q = q.filter(Todo.categories.any(Category.name == cat_name))
 
@@ -690,28 +696,25 @@ def todo():
         q = q.order_by(Todo.completed.asc(), Todo.task.asc())
     elif sort_pref == 'oldest':
         q = q.order_by(Todo.completed.asc(), Todo.id.asc())
-    else:
+    else: # newest
         q = q.order_by(Todo.completed.asc(), Todo.id.desc())
 
+    total_filtered_tasks = q.distinct().count()
+    completed_filtered_tasks = q.filter(Todo.completed == True).distinct().count()
+    progress_percent = int((completed_filtered_tasks / total_filtered_tasks * 100)) if total_filtered_tasks > 0 else 0
     pagination = q.distinct().paginate(page=page, per_page=10, error_out=False)
-    
-    page_items = pagination.items
-    total_on_page = len(page_items)
-    completed_on_page = sum(1 for t in page_items if t.completed)
-    progress_percent = int((completed_on_page / total_on_page * 100)) if total_on_page > 0 else 0
-
     categories = Category.query.filter_by(user_id=current_user.id).order_by(Category.name).all()
     all_tasks = Todo.query.filter_by(user_id=current_user.id).order_by(Todo.task.asc()).all()
 
     return render_template('todo.html', 
-                         pagination=pagination,
-                         categories=categories,
-                         all_tasks=all_tasks,
-                         selected_category=selected_category_input, 
-                         search_query=search_query,
-                         status_filter=status_filter,
-                         progress_percent=progress_percent,
-                         toggle_cat=toggle_category_string)
+                        pagination=pagination,
+                        categories=categories,
+                        all_tasks=all_tasks,
+                        selected_category=selected_category_input, 
+                        search_query=search_query,
+                        status_filter=status_filter,
+                        progress_percent=progress_percent,
+                        toggle_cat=toggle_category_string)
 
 @app.route('/version')
 def version():

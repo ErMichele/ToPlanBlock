@@ -223,13 +223,37 @@ class TodoAJAXManager {
         });
 
         document.addEventListener('click', (e) => {
+            // Handle non-checkbox category filter additions/removals locally
+            const toggleZone = e.target.closest('.category-toggle-zone');
+            if (toggleZone) {
+                e.preventDefault();
+                this.toggleCategoryFilter(toggleZone);
+                return;
+            }
+
             const link = e.target.closest('.ajax-filter-trigger');
 
             if (!link) return;
 
             e.preventDefault();
 
-            this.loadPage(link.href);
+            let url = link.href;
+            
+            // If clicking 'Apply Filters', build final URL with selected categories
+            if (link.id === 'apply-filters-btn') {
+                const filterInput = document.getElementById('filter-category-input');
+                const categoriesValue = filterInput ? filterInput.value : '';
+                const baseUrl = link.getAttribute('data-base-url') || url;
+                
+                let finalUrl = baseUrl;
+                if (categoriesValue) {
+                    const separator = finalUrl.includes('?') ? '&' : '?';
+                    finalUrl += separator + 'category=' + encodeURIComponent(categoriesValue);
+                }
+                url = finalUrl;
+            }
+
+            this.loadPage(url);
         });
 
         document.addEventListener('show.bs.modal', (event) => {
@@ -244,6 +268,62 @@ class TodoAJAXManager {
                 form.action = url;
             }
         });
+    }
+
+    toggleCategoryFilter(toggleZone) {
+        const item = toggleZone.closest('.category-filter-item');
+        if (!item) return;
+
+        const filterInput = document.getElementById('filter-category-input');
+        if (!filterInput) return;
+
+        const catName = item.getAttribute('data-cat-name');
+        const catColor = item.getAttribute('data-cat-color');
+
+        let currentVal = filterInput.value.trim();
+        let activeCats = currentVal ? currentVal.split(',') : [];
+
+        const index = activeCats.findIndex(c => c.toUpperCase() === catName.toUpperCase());
+        const checkIconSpan = item.querySelector('.category-check-icon');
+        const badgeSpan = item.querySelector('.badge');
+
+        // Trigger the lil pop animation
+        if (badgeSpan) {
+            badgeSpan.classList.remove('badge-pop');
+            void badgeSpan.offsetWidth; // Trick to force browser reflow and restart the CSS animation
+            badgeSpan.classList.add('badge-pop');
+        }
+
+        if (index > -1) {
+            // De-select category item locally
+            activeCats.splice(index, 1);
+            if (checkIconSpan) {
+                checkIconSpan.innerHTML = '<i class="bi bi-circle text-muted" style="font-size: 1.1rem;"></i>';
+            }
+            if (badgeSpan) {
+                badgeSpan.className = 'badge px-3 py-2 rounded-pill text-body border';
+                badgeSpan.style.backgroundColor = 'var(--bs-body-secondary)';
+                badgeSpan.style.borderColor = 'var(--bs-border-color)';
+                badgeSpan.style.color = 'var(--bs-body-color)';
+                badgeSpan.style.opacity = '0.85';
+            }
+        } else {
+            // Select category item locally
+            activeCats.push(catName);
+            if (checkIconSpan) {
+                checkIconSpan.innerHTML = `<i class="bi bi-check-circle-fill" style="color: ${catColor}; font-size: 1.1rem;"></i>`;
+            }
+            if (badgeSpan) {
+                // FIXED: We keep the 'border' class here so the layout size never changes!
+                badgeSpan.className = 'badge px-3 py-2 rounded-pill text-white border';
+                badgeSpan.style.backgroundColor = catColor;
+                badgeSpan.style.borderColor = catColor; // Match border color to background
+                badgeSpan.style.color = '#fff';
+                badgeSpan.style.opacity = '1';
+            }
+        }
+
+        filterInput.value = activeCats.join(',');
     }
 
     async submitForm(form) {
