@@ -468,6 +468,7 @@ def update_preferences():
     session['auto_delete'] = 'auto_delete' in request.form
     session['confirm_delete'] = 'confirm_delete' in request.form
     session['sort_by'] = request.form.get('sort_by', 'newest')
+    session['cat_sort_by'] = request.form.get('cat_sort_by', 'amount')
     session['theme'] = request.form.get('theme', 'system')
     
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -703,7 +704,18 @@ def todo():
     completed_filtered_tasks = q.filter(Todo.completed == True).distinct().count()
     progress_percent = int((completed_filtered_tasks / total_filtered_tasks * 100)) if total_filtered_tasks > 0 else 0
     pagination = q.distinct().paginate(page=page, per_page=10, error_out=False)
-    categories = Category.query.filter_by(user_id=current_user.id).order_by(Category.name).all()
+    
+    cat_sort_pref = session.get('cat_sort_by', 'amount')
+    base_q = Category.query.filter_by(user_id=current_user.id)
+    if cat_sort_pref == 'alpha':
+        categories = base_q.order_by(Category.is_locked.desc(), Category.name.asc()).all()
+    elif cat_sort_pref == 'newest':
+        categories = base_q.order_by(Category.is_locked.desc(), Category.id.desc()).all()
+    else: # amount
+        categories = (base_q.outerjoin(Category.todos)
+                        .group_by(Category.id)
+                        .order_by(Category.is_locked.desc(), db.func.count(Todo.id).desc(), Category.name.asc())
+                        .all())
     all_tasks = Todo.query.filter_by(user_id=current_user.id).order_by(Todo.task.asc()).all()
 
     return render_template('todo.html', 

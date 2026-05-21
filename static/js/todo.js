@@ -262,7 +262,7 @@ class TodoAJAXManager {
             if (!button) return;
 
             const url = button.dataset.url;
-            const form = document.getElementById('confirmDeleteForm');
+            const form = event.target.querySelector('form');
 
             if (url && form) {
                 form.action = url;
@@ -365,12 +365,12 @@ class TodoAJAXManager {
                 const data = await response.json();
 
                 if (!response.ok) {
-                    throw new Error(data.error || 'Request failed');
+                    // FIXED: Captures your backend's custom error messages properly
+                    throw new Error(data.message || data.error || 'Request failed');
                 }
 
-                await this.refreshCurrentPage();
-
                 this.closeOpenModal();
+                await this.refreshCurrentPage();
 
                 window.showToast?.(
                     data.message || 'Success!',

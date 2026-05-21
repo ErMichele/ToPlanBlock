@@ -1,7 +1,6 @@
 {% extends "base.html" %}
 {% block title %}ToPlanBlock - My Tasks{% endblock %}
 {% block content %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/todo.css') }}">
 <div class="row g-4">
   <div class="col-lg-4" id="sidebar-container">
     <div class="card border-0 shadow-sm mb-4">
@@ -562,6 +561,12 @@
 </div>
 {% endif %}
 
-<script src="{{ url_for('static', filename='js/todo.js') }}"></script>
+{% endblock %}
 
+{% block extra_styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/todo.css') }}">
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/todo.js') }}"></script>
 {% endblock %}
