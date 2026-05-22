@@ -61,10 +61,12 @@
         <ul class="list-group list-group-flush small m-0 p-0" id="unified-category-list">
           {% set active_list = selected_category.upper().split(',') if selected_category else [] %}
           {% for c in categories %}
-          <li class="list-group-item d-flex justify-content-between align-items-center px-0 py-2 bg-transparent border-secondary-subtle category-filter-item" 
-              data-cat-name="{{ c.name }}" data-cat-color="{{ c.color }}">
-            
-            <div class="d-flex align-items-center gap-2 category-toggle-zone" style="cursor: pointer; user-select: none;">
+          <li
+            class="list-group-item d-flex justify-content-between align-items-center px-0 py-2 bg-transparent border-secondary-subtle category-filter-item"
+            data-cat-name="{{ c.name }}" data-cat-color="{{ c.color }}">
+
+            <div class="d-flex align-items-center gap-2 category-toggle-zone"
+              style="cursor: pointer; user-select: none;">
               <span class="category-check-icon">
                 {% if c.name.upper() in active_list %}
                 <i class="bi bi-check-circle-fill" style="color: {{ c.color }}; font-size: 1.1rem;"></i>
@@ -72,7 +74,8 @@
                 <i class="bi bi-circle text-muted" style="font-size: 1.1rem;"></i>
                 {% endif %}
               </span>
-              <span class="badge px-3 py-2 rounded-pill {% if c.name.upper() in active_list %}text-white{% else %}text-body border{% endif %}"
+              <span
+                class="badge px-3 py-2 rounded-pill {% if c.name.upper() in active_list %}text-white{% else %}text-body border{% endif %}"
                 style="{% if c.name.upper() in active_list %}background-color: {{ c.color }} !important; border-color: {{ c.color }} !important; color: #fff !important;{% else %}background-color: var(--bs-body-secondary); color: var(--bs-body-color); border-color: var(--bs-border-color); opacity: 0.85;{% endif %}">
                 {{ c.name }}
               </span>
@@ -118,7 +121,9 @@
         </ul>
 
         <div class="d-flex gap-2 mt-3 pt-3 border-top">
-          <a href="#" id="apply-filters-btn" data-base-url="{{ url_for('todo', status=status_filter, search=search_query) }}" class="btn btn-sm btn-primary flex-fill rounded-pill fw-bold ajax-filter-trigger">
+          <a href="#" id="apply-filters-btn"
+            data-base-url="{{ url_for('todo', status=status_filter, search=search_query) }}"
+            class="btn btn-sm btn-primary flex-fill rounded-pill fw-bold ajax-filter-trigger">
             <i class="bi bi-funnel-fill me-1"></i>Apply Filters
           </a>
           {% if selected_category %}
@@ -467,17 +472,37 @@
               title="Choose your category badge color">
           </div>
           <div class="mb-1">
-            <label class="form-label fw-bold small text-muted text-uppercase">Link To Tasks</label>
-            <div class="border rounded p-2 bg-body-tertiary" style="max-height: 160px; overflow-y: auto;">
+            <label
+              class="form-label fw-bold small text-muted text-uppercase d-flex justify-content-between align-items-center">
+              <span>Link To Tasks</span>
+              <span class="badge bg-secondary-subtle text-secondary target-counter">0 selected</span>
+            </label>
+
+            <div class="input-group input-group-sm mb-2">
+              <span class="input-group-text bg-body-tertiary border-secondary-subtle"><i class="bi bi-search"
+                  style="font-size: 0.75rem;"></i></span>
+              <input type="text"
+                class="form-control form-control-sm task-modal-search border-secondary-subtle shadow-none"
+                placeholder="Filter tasks...">
+            </div>
+
+            <div class="list-group border rounded-3 overflow-y-auto bg-body-tertiary" style="max-height: 180px;">
               {% for task_item in all_tasks %}
-              <div class="form-check py-1">
-                <input class="form-check-input border-secondary" type="checkbox" name="task_ids"
-                  value="{{ task_item.id }}" id="newTaskMap{{ task_item.id }}">
-                <label class="form-check-label small ms-1" for="newTaskMap{{ task_item.id }}">{{ task_item.task
-                  }}</label>
-              </div>
+              <label
+                class="list-group-item list-group-item-action d-flex align-items-center justify-content-between py-2 px-3 border-0 border-bottom border-secondary-subtle m-0 cursor-pointer modal-task-row">
+                <div class="d-flex align-items-center gap-2 overflow-hidden w-100 me-2">
+                  <input class="form-check-input flex-shrink-0 border-secondary modal-task-checkbox" type="checkbox"
+                    name="task_ids" value="{{ task_item.id }}" id="newTaskMap{{ task_item.id }}">
+                  <span class="small text-truncate w-100 py-0 text-body" title="{{ task_item.task }}">{{ task_item.task
+                    }}</span>
+                </div>
+                {% if task_item.completed %}
+                <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill py-1 px-2"
+                  style="font-size: 0.65rem;">Done</span>
+                {% endif %}
+              </label>
               {% else %}
-              <small class="text-muted fst-italic px-1">No tasks created yet.</small>
+              <div class="text-center py-3 text-muted fst-italic small">No tasks created yet.</div>
               {% endfor %}
             </div>
           </div>
@@ -497,10 +522,10 @@
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content border-0 shadow-lg rounded-4">
       <div class="modal-header bg-primary text-white border-0">
-        <h5 class="modal-title fw-bold">Modify Category: {{ c.name }}</h5>
+        <h5 class="modal-title fw-bold">Modify Category</h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
-      <form method="POST" action="{{ url_for('edit_category', cat_id=c.id) }}">
+      <form method="POST" action="{{ url_for('edit_category', cat_id=c.id, page=page, search=search, status=status) }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
         <div class="modal-body p-4">
           <div class="mb-3">
@@ -513,18 +538,39 @@
               value="{{ c.color }}" title="Choose your category badge color">
           </div>
           <div class="mb-1">
-            <label class="form-label fw-bold small text-muted text-uppercase">Linked Tasks Mapping</label>
-            <div class="border rounded p-2 bg-body-tertiary" style="max-height: 160px; overflow-y: auto;">
+            <label
+              class="form-label fw-bold small text-muted text-uppercase d-flex justify-content-between align-items-center">
+              <span>Linked Tasks Mapping</span>
+              <span class="badge bg-secondary-subtle text-secondary target-counter">0 selected</span>
+            </label>
+
+            <div class="input-group input-group-sm mb-2">
+              <span class="input-group-text bg-body-tertiary border-secondary-subtle"><i class="bi bi-search"
+                  style="font-size: 0.75rem;"></i></span>
+              <input type="text"
+                class="form-control form-control-sm task-modal-search border-secondary-subtle shadow-none"
+                placeholder="Filter tasks...">
+            </div>
+
+            <div class="list-group border rounded-3 overflow-y-auto bg-body-tertiary" style="max-height: 180px;">
               {% for task_item in all_tasks %}
-              <div class="form-check py-1">
-                <input class="form-check-input border-secondary" type="checkbox" name="task_ids"
-                  value="{{ task_item.id }}" id="editTaskMap{{ c.id }}_{{ task_item.id }}" {% if c in
-                  task_item.categories %}checked{% endif %}>
-                <label class="form-check-label small ms-1" for="editTaskMap{{ c.id }}_{{ task_item.id }}">{{
-                  task_item.task }}</label>
-              </div>
+              {% set is_checked = c in task_item.categories %}
+              <label
+                class="list-group-item list-group-item-action d-flex align-items-center justify-content-between py-2 px-3 border-0 border-bottom border-secondary-subtle m-0 cursor-pointer modal-task-row">
+                <div class="d-flex align-items-center gap-2 overflow-hidden w-100 me-2">
+                  <input class="form-check-input flex-shrink-0 border-secondary modal-task-checkbox" type="checkbox"
+                    name="task_ids" value="{{ task_item.id }}" id="editTaskMap{{ c.id }}_{{ task_item.id }}" {% if
+                    is_checked %}checked{% endif %}>
+                  <span class="small text-truncate w-100 py-0 text-body" title="{{ task_item.task }}">{{ task_item.task
+                    }}</span>
+                </div>
+                {% if task_item.completed %}
+                <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill py-1 px-2"
+                  style="font-size: 0.65rem;">Done</span>
+                {% endif %}
+              </label>
               {% else %}
-              <small class="text-muted fst-italic px-1">No tasks created yet.</small>
+              <div class="text-center py-3 text-muted fst-italic small">No tasks created yet.</div>
               {% endfor %}
             </div>
           </div>

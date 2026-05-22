@@ -199,6 +199,52 @@ class TodoAJAXManager {
             document.body.style.removeProperty('overflow');
         });
 
+        document.addEventListener('shown.bs.modal', (e) => {
+            const modal = e.target;
+            if (modal.querySelector('.modal-task-checkbox') || modal.querySelector('.task-modal-search')) {
+                this.updateCategoryModalState(modal);
+                
+                const searchInput = modal.querySelector('.task-modal-search');
+                if (searchInput) {
+                    searchInput.value = '';
+                    modal.querySelectorAll('.modal-task-row').forEach(row => {
+                        row.classList.remove('d-none');
+                        row.classList.add('d-flex');
+                    });
+                    searchInput.focus();
+                }
+            }
+        });
+
+        document.addEventListener('input', (e) => {
+            if (e.target.matches('.task-modal-search')) {
+                const filterValue = e.target.value.toLowerCase().trim();
+                const modal = e.target.closest('.modal');
+                if (!modal) return;
+                
+                modal.querySelectorAll('.modal-task-row').forEach(row => {
+                    const textSpan = row.querySelector('.task-text-span');
+                    const textContent = textSpan ? textSpan.textContent.toLowerCase() : row.textContent.toLowerCase();
+                    if (textContent.includes(filterValue)) {
+                        row.classList.remove('d-none');
+                        row.classList.add('d-flex');
+                    } else {
+                        row.classList.remove('d-flex');
+                        row.classList.add('d-none');
+                    }
+                });
+            }
+        });
+
+        document.addEventListener('change', (e) => {
+            if (e.target.matches('.modal-task-checkbox')) {
+                const modal = e.target.closest('.modal');
+                if (modal) {
+                    this.updateCategoryModalState(modal);
+                }
+            }
+        });
+
         document.addEventListener('submit', (e) => {
             const form = e.target;
 
@@ -223,7 +269,6 @@ class TodoAJAXManager {
         });
 
         document.addEventListener('click', (e) => {
-            // Handle non-checkbox category filter additions/removals locally
             const toggleZone = e.target.closest('.category-toggle-zone');
             if (toggleZone) {
                 e.preventDefault();
@@ -239,7 +284,6 @@ class TodoAJAXManager {
 
             let url = link.href;
             
-            // If clicking 'Apply Filters', build final URL with selected categories
             if (link.id === 'apply-filters-btn') {
                 const filterInput = document.getElementById('filter-category-input');
                 const categoriesValue = filterInput ? filterInput.value : '';
@@ -270,6 +314,24 @@ class TodoAJAXManager {
         });
     }
 
+    // --- NEW: Dynamic updates to row backgrounds and chosen counts ---
+    updateCategoryModalState(modalElement) {
+        const totalChecked = modalElement.querySelectorAll('.modal-task-checkbox:checked').length;
+        const counterBadge = modalElement.querySelector('.target-counter');
+        if (counterBadge) {
+            counterBadge.textContent = `${totalChecked} selected`;
+        }
+        
+        modalElement.querySelectorAll('.modal-task-row').forEach(row => {
+            const checkbox = row.querySelector('.modal-task-checkbox');
+            if (checkbox && checkbox.checked) {
+                row.classList.add('modal-task-row-active');
+            } else {
+                row.classList.remove('modal-task-row-active');
+            }
+        });
+    }
+
     toggleCategoryFilter(toggleZone) {
         const item = toggleZone.closest('.category-filter-item');
         if (!item) return;
@@ -287,15 +349,13 @@ class TodoAJAXManager {
         const checkIconSpan = item.querySelector('.category-check-icon');
         const badgeSpan = item.querySelector('.badge');
 
-        // Trigger the lil pop animation
         if (badgeSpan) {
             badgeSpan.classList.remove('badge-pop');
-            void badgeSpan.offsetWidth; // Trick to force browser reflow and restart the CSS animation
+            void badgeSpan.offsetWidth; 
             badgeSpan.classList.add('badge-pop');
         }
 
         if (index > -1) {
-            // De-select category item locally
             activeCats.splice(index, 1);
             if (checkIconSpan) {
                 checkIconSpan.innerHTML = '<i class="bi bi-circle text-muted" style="font-size: 1.1rem;"></i>';
@@ -308,16 +368,14 @@ class TodoAJAXManager {
                 badgeSpan.style.opacity = '0.85';
             }
         } else {
-            // Select category item locally
             activeCats.push(catName);
             if (checkIconSpan) {
                 checkIconSpan.innerHTML = `<i class="bi bi-check-circle-fill" style="color: ${catColor}; font-size: 1.1rem;"></i>`;
             }
             if (badgeSpan) {
-                // FIXED: We keep the 'border' class here so the layout size never changes!
                 badgeSpan.className = 'badge px-3 py-2 rounded-pill text-white border';
                 badgeSpan.style.backgroundColor = catColor;
-                badgeSpan.style.borderColor = catColor; // Match border color to background
+                badgeSpan.style.borderColor = catColor; 
                 badgeSpan.style.color = '#fff';
                 badgeSpan.style.opacity = '1';
             }
@@ -365,7 +423,6 @@ class TodoAJAXManager {
                 const data = await response.json();
 
                 if (!response.ok) {
-                    // FIXED: Captures your backend's custom error messages properly
                     throw new Error(data.message || data.error || 'Request failed');
                 }
 

@@ -56,6 +56,7 @@
     transform: scale(0.7);
     opacity: 0;
   }
+
   100% {
     transform: scale(1);
     opacity: 1;
@@ -104,7 +105,8 @@
   margin-top: 4px;
 }
 
-.task-title p, .note-text-container p {
+.task-title p,
+.note-text-container p {
   margin-bottom: 0 !important;
 }
 
@@ -132,19 +134,19 @@
   display: flex;
   align-items: flex-start;
   gap: 8px;
-  overflow-wrap: anywhere; 
+  overflow-wrap: anywhere;
   word-break: break-word;
 }
 
 .note-content-area i {
   font-size: 1.1rem;
-  line-height: 1; 
-  margin-top: 0.1rem; 
+  line-height: 1;
+  margin-top: 0.1rem;
 }
 
-.note-content-area > div {
+.note-content-area>div {
   flex: 1;
-  min-width: 0; 
+  min-width: 0;
 }
 
 .btn-icon {
@@ -157,15 +159,39 @@
 }
 
 .category-filter-item .badge {
-    transition: background-color 0.25s ease, border-color 0.25s ease, color 0.25s ease, opacity 0.25s ease;
+  transition: background-color 0.25s ease, border-color 0.25s ease, color 0.25s ease, opacity 0.25s ease;
 }
 
 .badge-pop {
-    animation: badgePopEffect 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  animation: badgePopEffect 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
 @keyframes badgePopEffect {
-    0% { transform: scale(1); }
-    50% { transform: scale(1.12); }
-    100% { transform: scale(1); }
+  0% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.12);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}
+
+.cursor-pointer {
+  cursor: pointer !important;
+}
+
+.modal-task-row {
+  transition: background-color 0.15s ease-in-out;
+}
+
+.modal-task-row:last-child {
+  border-bottom: 0 !important;
+}
+
+.modal-task-row-active {
+  background-color: var(--bs-light-bg-subtle) !important;
 }
