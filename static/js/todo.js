@@ -176,6 +176,88 @@ class TagInputManager {
 }
 
 /**
+ * BulkSelectionManager - Reusable class to manage selection tracking across pagination
+ * Stores selected row IDs in a persistent JavaScript Set instance.
+ */
+class BulkSelectionManager {
+    constructor(options = {}) {
+        this.checkboxSelector = options.checkboxSelector || '.todo-checkbox';
+        this.selectAllSelector = options.selectAllSelector || '#selectAll';
+        this.bulkBtnSelector = options.bulkBtnSelector || '#bulkActionsBtn';
+        
+        this.selectedIds = new Set();
+        this.initEvents();
+    }
+
+    initEvents() {
+        // Use global event delegation to gracefully manage dynamically added AJAX elements
+        document.addEventListener('change', (e) => {
+            if (e.target.matches(this.checkboxSelector)) {
+                this.handleCheckboxChange(e.target);
+            } else if (e.target.matches(this.selectAllSelector)) {
+                this.handleSelectAllChange(e.target);
+            }
+        });
+    }
+
+    handleCheckboxChange(cb) {
+        if (cb.checked) {
+            this.selectedIds.add(cb.value);
+        } else {
+            this.selectedIds.delete(cb.value);
+        }
+        this.syncSelectAllState();
+        this.updateBulkButtonState();
+    }
+
+    handleSelectAllChange(selectAllCb) {
+        const checkboxes = document.querySelectorAll(this.checkboxSelector);
+        checkboxes.forEach(cb => {
+            cb.checked = selectAllCb.checked;
+            if (selectAllCb.checked) {
+                this.selectedIds.add(cb.value);
+            } else {
+                this.selectedIds.delete(cb.value);
+            }
+        });
+        this.updateBulkButtonState();
+    }
+
+    syncUI() {
+        const checkboxes = document.querySelectorAll(this.checkboxSelector);
+        checkboxes.forEach(cb => {
+            cb.checked = this.selectedIds.has(cb.value);
+        });
+        this.syncSelectAllState();
+        this.updateBulkButtonState();
+    }
+
+    syncSelectAllState() {
+        const selectAllCb = document.querySelector(this.selectAllSelector);
+        if (selectAllCb) {
+            const checkboxes = document.querySelectorAll(this.checkboxSelector);
+            selectAllCb.checked = checkboxes.length > 0 && [...checkboxes].every(cb => cb.checked);
+        }
+    }
+
+    updateBulkButtonState() {
+        const bulkBtn = document.querySelector(this.bulkBtnSelector);
+        if (bulkBtn) {
+            bulkBtn.disabled = this.selectedIds.size === 0;
+        }
+    }
+
+    clear() {
+        this.selectedIds.clear();
+        this.syncUI();
+    }
+
+    getIds() {
+        return Array.from(this.selectedIds);
+    }
+}
+
+/**
  * TodoAJAXManager - Handles AJAX interactions for the ToDo app
  * Intercepts form submissions and link clicks to perform AJAX requests,
  * updates the UI dynamically, and manages loading states and toasts.
@@ -186,8 +268,12 @@ class TodoAJAXManager {
     }
 
     init() {
+        this.bulkManager = new BulkSelectionManager({
+            checkboxSelector: '.todo-checkbox',
+            selectAllSelector: '#selectAll',
+            bulkBtnSelector: '#bulkActionsBtn'
+        });
         this.bindGlobalEvents();
-        this.bindBulkLogic();
     }
 
     bindGlobalEvents() {
@@ -391,11 +477,17 @@ class TodoAJAXManager {
             const formData = new FormData(form);
 
             if (form.id === 'bulk-form') {
-                document
-                    .querySelectorAll('.todo-checkbox:checked')
-                    .forEach(cb => {
-                        formData.append('todo_ids', cb.value);
+                if (this.bulkManager) {
+                    this.bulkManager.getIds().forEach(id => {
+                        formData.append('todo_ids', id);
                     });
+                } else {
+                    document
+                        .querySelectorAll('.todo-checkbox:checked')
+                        .forEach(cb => {
+                            formData.append('todo_ids', cb.value);
+                        });
+                }
 
                 if (
                     document.activeElement &&
@@ -427,6 +519,11 @@ class TodoAJAXManager {
                 }
 
                 this.closeOpenModal();
+                
+                if (form.id === 'bulk-form' && this.bulkManager) {
+                    this.bulkManager.clear();
+                }
+
                 await this.refreshCurrentPage();
 
                 window.showToast?.(
@@ -435,6 +532,11 @@ class TodoAJAXManager {
                 );
             } else {
                 const html = await response.text();
+                
+                if (form.id === 'bulk-form' && this.bulkManager) {
+                    this.bulkManager.clear();
+                }
+
                 this.replacePageContent(html);
             }
         } catch (err) {
@@ -499,6 +601,7 @@ class TodoAJAXManager {
         }
 
         this.reinitializeUI();
+        this.handleEmptyPage();
     }
 
     reinitializeUI() {
@@ -508,43 +611,46 @@ class TodoAJAXManager {
                 new TagInputManager(wrapper);
             });
 
-        this.bindBulkLogic();
+        if (this.bulkManager) {
+            this.bulkManager.syncUI();
+        }
     }
 
-    bindBulkLogic() {
-        const selectAll = document.getElementById('selectAll');
+    handleEmptyPage() {
         const checkboxes = document.querySelectorAll('.todo-checkbox');
-        const bulkBtn = document.getElementById('bulkActionsBtn');
+        // If the view contains tasks, no fallback action is required
+        if (checkboxes.length > 0) return;
 
-        const updateState = () => {
-            const anyChecked = [...checkboxes].some(cb => cb.checked);
+        const urlParams = new URLSearchParams(window.location.search);
+        const currentPage = parseInt(urlParams.get('page')) || 1;
 
-            if (bulkBtn) {
-                bulkBtn.disabled = !anyChecked;
-            }
+        // If we are on page 1, an empty task view is valid (no tasks left in database)
+        if (currentPage <= 1) return;
 
-            if (selectAll) {
-                selectAll.checked =
-                    checkboxes.length > 0 &&
-                    [...checkboxes].every(cb => cb.checked);
-            }
-        };
+        let targetPage = currentPage - 1;
+        let maxPageFound = 1;
 
-        if (selectAll) {
-            selectAll.addEventListener('change', () => {
-                checkboxes.forEach(cb => {
-                    cb.checked = selectAll.checked;
-                });
-
-                updateState();
-            });
-        }
-
-        checkboxes.forEach(cb => {
-            cb.addEventListener('change', updateState);
+        // Inspect the updated pagination elements to determine the actual maximum page limit
+        const pageLinks = document.querySelectorAll('a[href*="page="]');
+        pageLinks.forEach(link => {
+            try {
+                const href = link.getAttribute('href');
+                const url = new URL(href, window.location.origin);
+                const p = parseInt(url.searchParams.get('page'));
+                if (!isNaN(p) && p > maxPageFound) {
+                    maxPageFound = p;
+                }
+            } catch (e) {}
         });
 
-        updateState();
+        if (maxPageFound < currentPage) {
+            targetPage = maxPageFound;
+        }
+
+        // Maintain any query parameters (like categories or search terms) while transitioning the page
+        urlParams.set('page', targetPage);
+        const newUrl = window.location.pathname + '?' + urlParams.toString();
+        this.loadPage(newUrl);
     }
 
     closeOpenModal() {
