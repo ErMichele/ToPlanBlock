@@ -9,9 +9,10 @@
       <p class="text-muted mb-0">Manage your identity, security, and app preferences.</p>
     </div>
     <div class="d-none d-md-block text-end">
-        <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-3 py-2">
-            Member since: {% if current_user.created_at %}{{ current_user.created_at.strftime('%b %Y') }}{% else %}March 2026{% endif %}
-        </span>
+      <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-3 py-2">
+        Member since: {% if current_user.created_at %}{{ current_user.created_at.strftime('%b %Y') }}{% else %}March
+        2026{% endif %}
+      </span>
     </div>
   </div>
 
@@ -22,21 +23,22 @@
 
         <div class="card border-0 shadow-sm mb-4 overflow-hidden">
           <div class="card-header bg-body-secondary border-bottom py-3">
-            <h5 class="card-title mb-0 fw-bold"><i class="bi bi-person-circle me-2 text-primary"></i>General Information</h5>
+            <h5 class="card-title mb-0 fw-bold"><i class="bi bi-person-circle me-2 text-primary"></i>General Information
+            </h5>
           </div>
           <div class="card-body p-4">
             <div class="row align-items-center mb-4">
               <div class="col-auto">
                 <div class="position-relative">
-                    <img src="{{ current_user.profile_pic_url or '' }}" alt="Profile Picture"
-                      class="rounded-circle shadow-sm border {% if not current_user.profile_pic_url %}d-none{% endif %}"
-                      id="profile-img" style="width: 90px; height: 90px; object-fit: cover;">
+                  <img src="{{ current_user.profile_pic_url or '' }}" alt="Profile Picture"
+                    class="rounded-circle shadow-sm border {% if not current_user.profile_pic_url %}d-none{% endif %}"
+                    id="profile-img" style="width: 90px; height: 90px; object-fit: cover;">
 
-                    <div id="fallback-avatar"
-                      class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center shadow-sm {% if current_user.profile_pic_url %}d-none{% endif %}"
-                      style="width: 90px; height: 90px; font-size: 2.2rem; font-weight: 600;">
-                      {{ current_user.username[0] | upper }}
-                    </div>
+                  <div id="fallback-avatar"
+                    class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center shadow-sm {% if current_user.profile_pic_url %}d-none{% endif %}"
+                    style="width: 90px; height: 90px; font-size: 2.2rem; font-weight: 600;">
+                    {{ current_user.username[0] | upper }}
+                  </div>
                 </div>
               </div>
               <div class="col">
@@ -49,16 +51,16 @@
             <div class="mb-3">
               <label class="form-label fw-semibold">Username</label>
               <div class="input-group">
-                  <span class="input-group-text bg-body-secondary"><i class="bi bi-at"></i></span>
-                  <input class="form-control" type="text" name="username" value="{{ current_user.username }}" required>
+                <span class="input-group-text bg-body-secondary"><i class="bi bi-at"></i></span>
+                <input class="form-control" type="text" name="username" value="{{ current_user.username }}" required>
               </div>
             </div>
 
             <div class="mb-0">
               <label class="form-label fw-semibold">Email Address</label>
               <div class="input-group">
-                  <span class="input-group-text bg-body-secondary"><i class="bi bi-envelope"></i></span>
-                  <input class="form-control" type="email" name="email" value="{{ current_user.email }}" required>
+                <span class="input-group-text bg-body-secondary"><i class="bi bi-envelope"></i></span>
+                <input class="form-control" type="email" name="email" value="{{ current_user.email }}" required>
               </div>
             </div>
           </div>
@@ -76,10 +78,10 @@
             </div>
 
             <div class="p-3 bg-body-secondary rounded-3">
-                <label class="form-label fw-semibold mb-1">New Password</label>
-                <input class="form-control" type="password" name="new_password" minlength="8" autocomplete="new-password"
-                  placeholder="Leave blank to keep current">
-                <div class="form-text">Minimum 8 characters with a mix of letters and numbers.</div>
+              <label class="form-label fw-semibold mb-1">New Password</label>
+              <input class="form-control" type="password" name="new_password" minlength="8" autocomplete="new-password"
+                placeholder="Leave blank to keep current">
+              <div class="form-text">Minimum 8 characters with a mix of letters and numbers.</div>
             </div>
           </div>
           <div class="card-footer bg-body-secondary border-0 p-3 text-end">
@@ -103,39 +105,43 @@
               <option value="system" {% if session.get('theme')=='system' %}selected{% endif %}>System Default</option>
             </select>
           </div>
-          
+
           <div class="mb-4">
             <label class="form-label fw-bold small text-muted text-uppercase">Task Ordering</label>
             <select name="sort_by" class="form-select pref-auto-save">
               <option value="newest" {% if session.get('sort_by')=='newest' %}selected{% endif %}>Newest First</option>
               <option value="oldest" {% if session.get('sort_by')=='oldest' %}selected{% endif %}>Oldest First</option>
-              <option value="alpha" {% if session.get('sort_by')=='alpha' %}selected{% endif %}>Alphabetical (A-Z)</option>
+              <option value="alpha" {% if session.get('sort_by')=='alpha' %}selected{% endif %}>Alphabetical (A-Z)
+              </option>
             </select>
           </div>
 
           <div class="mb-4">
             <label class="form-label fw-bold small text-muted text-uppercase">Category Ordering</label>
             <select name="cat_sort_by" class="form-select pref-auto-save">
-              <option value="amount" {% if session.get('cat_sort_by')=='amount' %}selected{% endif %}>Amount of Tasks</option>
-              <option value="newest" {% if session.get('cat_sort_by')=='newest' %}selected{% endif %}>Newest First</option>
-              <option value="alpha" {% if session.get('cat_sort_by')=='alpha' %}selected{% endif %}>Alphabetical (A-Z)</option>
+              <option value="amount" {% if session.get('cat_sort_by')=='amount' %}selected{% endif %}>Amount of Tasks
+              </option>
+              <option value="newest" {% if session.get('cat_sort_by')=='newest' %}selected{% endif %}>Newest First
+              </option>
+              <option value="alpha" {% if session.get('cat_sort_by')=='alpha' %}selected{% endif %}>Alphabetical (A-Z)
+              </option>
             </select>
           </div>
 
           <div class="form-check form-switch mb-3">
-            <input class="form-check-input pref-auto-save" type="checkbox" name="auto_delete" id="autoDelete" 
-            {% if session.get('auto_delete') %}checked{% endif %}>
+            <input class="form-check-input pref-auto-save" type="checkbox" name="auto_delete" id="autoDelete" {% if
+              session.get('auto_delete') %}checked{% endif %}>
             <label class="form-check-label fw-medium" for="autoDelete">Auto-delete completed tasks</label>
           </div>
-          
+
           <div class="form-check form-switch">
-            <input class="form-check-input pref-auto-save" type="checkbox" name="confirm_delete" id="confirmDelete" 
-            {% if session.get('confirm_delete', True) %}checked{% endif %}>
+            <input class="form-check-input pref-auto-save" type="checkbox" name="confirm_delete" id="confirmDelete" {%
+              if session.get('confirm_delete', True) %}checked{% endif %}>
             <label class="form-check-label fw-medium" for="confirmDelete">Confirm before deleting</label>
           </div>
-          
+
           <div class="mt-3 pt-3 border-top">
-              <small class="text-success"><i class="bi bi-cloud-check me-1"></i> Changes save automatically</small>
+            <small class="text-success"><i class="bi bi-cloud-check me-1"></i> Changes save automatically</small>
           </div>
         </div>
       </div>
@@ -143,10 +149,17 @@
       <div class="card border-0 shadow-sm mb-4">
         <div class="card-body p-4">
           <h6 class="fw-bold mb-2">Export My Data</h6>
-          <p class="text-muted small">Download all your tasks and categories in a portable JSON format.</p>
-          <button id="exportBtn" class="btn btn-outline-primary btn-sm w-100 fw-bold">
-            <i class="bi bi-download me-2"></i>Download JSON
-          </button>
+          <p class="text-muted small">Download all your tasks and categories in your preferred portable format.</p>
+          <div class="d-flex gap-2">
+            <a href="{{ url_for('export_tasks', format='json') }}"
+              class="btn btn-outline-primary btn-sm flex-fill fw-bold">
+              <i class="bi bi-filetype-json me-2"></i>JSON Export
+            </a>
+            <a href="{{ url_for('export_tasks', format='csv') }}"
+              class="btn btn-outline-primary btn-sm flex-fill fw-bold">
+              <i class="bi bi-filetype-csv me-2"></i>CSV Export
+            </a>
+          </div>
         </div>
       </div>
 
@@ -172,8 +185,10 @@
         <h5 class="fw-bold mb-2">Unsaved Changes</h5>
         <p class="small text-muted mb-4">You have unsaved changes. If you leave now, they will be lost.</p>
         <div class="d-flex flex-column gap-2">
-          <button type="button" class="btn btn-primary rounded-pill fw-bold py-2" data-bs-dismiss="modal">Stay and Save</button>
-          <button type="button" id="confirmLeaveBtn" class="btn btn-link text-danger text-decoration-none fw-bold">Leave Anyway</button>
+          <button type="button" class="btn btn-primary rounded-pill fw-bold py-2" data-bs-dismiss="modal">Stay and
+            Save</button>
+          <button type="button" id="confirmLeaveBtn" class="btn btn-link text-danger text-decoration-none fw-bold">Leave
+            Anyway</button>
         </div>
       </div>
     </div>
@@ -187,10 +202,12 @@
         <div class="text-danger mb-3"><i class="bi bi-person-x display-4"></i></div>
         <h5 class="fw-bold mb-2">Delete Account?</h5>
         <p class="small text-muted mb-4">
-          <strong>Warning:</strong> This action is permanent. All your tasks, settings, and profile data will be wiped forever.
+          <strong>Warning:</strong> This action is permanent. All your tasks, settings, and profile data will be wiped
+          forever.
         </p>
         <div class="d-flex gap-2">
-          <button type="button" class="btn btn-light rounded-pill flex-fill fw-bold" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-light rounded-pill flex-fill fw-bold"
+            data-bs-dismiss="modal">Cancel</button>
           <form method="POST" action="{{ url_for('delete_account') }}" class="flex-fill">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
             <button type="submit" class="btn btn-danger rounded-pill w-100 fw-bold">Delete Everything</button>
@@ -201,7 +218,8 @@
   </div>
 </div>
 
-<div class="modal fade" id="cropperModal" tabindex="-1" aria-labelledby="cropperModalLabel" aria-hidden="true" data-bs-backdrop="static">
+<div class="modal fade" id="cropperModal" tabindex="-1" aria-labelledby="cropperModalLabel" aria-hidden="true"
+  data-bs-backdrop="static">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content border-0 shadow-lg">
       <div class="modal-header">

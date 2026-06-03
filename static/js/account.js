@@ -23,7 +23,7 @@ document.addEventListener('DOMContentLoaded', function () {
         handleImageError();
     }
 
-    fileInput.addEventListener('change', function() {
+    fileInput.addEventListener('change', function () {
         if (this.files && this.files[0]) {
             const reader = new FileReader();
             reader.onload = (e) => {
@@ -51,13 +51,13 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         if (!profileImg.src.startsWith('data:image')) {
-            fileInput.value = ""; 
+            fileInput.value = "";
         }
     });
 
     saveCropBtn.addEventListener('click', () => {
         const canvas = cropper.getCroppedCanvas({ width: 400, height: 400 });
-        
+
         canvas.toBlob((blob) => {
             const originalFileName = fileInput.files && fileInput.files[0] ? fileInput.files[0].name : 'profile.jpg';
             const croppedFile = new File([blob], originalFileName, { type: "image/jpeg" });
@@ -149,50 +149,67 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     infoForm.addEventListener('submit', () => { skipCheck = true; });
-    const exportBtn = document.getElementById('exportBtn');
 
-    if (exportBtn) {
-        exportBtn.addEventListener('click', async () => {
-            try {
-                const response = await fetch(EXPORT_URL);
-                if (!response.ok) throw new Error('Export failed');
-                const disposition = response.headers.get('Content-Disposition');
-                let filename = `tasks_export_${new Date().toISOString().slice(0, 10)}.json`;
-                if (disposition && disposition.includes('filename=')) {
-                    const filenameRegex = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/;
-                    const matches = filenameRegex.exec(disposition);
-                    if (matches != null && matches[1]) {
-                        filename = matches[1].replace(/['"]/g, '');
-                    }
-                }
-                const blob = await response.blob();
-                if ('showSaveFilePicker' in window) {
-                    const handle = await window.showSaveFilePicker({
-                        suggestedName: filename,
-                        types: [{
-                            description: 'JSON File',
-                            accept: { 'application/json': ['.json'] },
-                        }],
-                    });
-                    const writable = await handle.createWritable();
-                    await writable.write(blob);
-                    await writable.close();
-                } else {
-                    // Fallback for browsers like Firefox
-                    const url = window.URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = filename;
-                    document.body.appendChild(a);
-                    a.click();
-                    window.URL.revokeObjectURL(url);
-                    a.remove();
-                }
-            } catch (err) {
-                if (err.name !== 'AbortError') {
-                    console.error("Export error:", err);
+    async function handleExport(buttonElement) {
+        // Get the dynamic export URL from the button's href attribute
+        const exportUrl = buttonElement.getAttribute('href');
+        if (!exportUrl) return;
+
+        try {
+            const response = await fetch(exportUrl);
+            if (!response.ok) throw new Error('Export failed');
+            const disposition = response.headers.get('Content-Disposition');
+            let filename = `tasks_export_${new Date().toISOString().slice(0, 10)}`;
+            const isCsv = exportUrl.includes('format=csv') || (disposition && disposition.includes('.csv'));
+            const fileExt = isCsv ? '.csv' : '.json';
+            filename += fileExt;
+
+            if (disposition && disposition.includes('filename=')) {
+                const filenameRegex = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/;
+                const matches = filenameRegex.exec(disposition);
+                if (matches != null && matches[1]) {
+                    filename = matches[1].replace(/['"]/g, '');
                 }
             }
-        });
+
+            const blob = await response.blob();
+            if ('showSaveFilePicker' in window) {
+                const pickerOptions = {
+                    suggestedName: filename,
+                    types: isCsv ? [{
+                        description: 'CSV File',
+                        accept: { 'text/csv': ['.csv'] }
+                    }] : [{
+                        description: 'JSON File',
+                        accept: { 'application/json': ['.json'] }
+                    }]
+                };
+                const handle = await window.showSaveFilePicker(pickerOptions);
+                const writable = await handle.createWritable();
+                await writable.write(blob);
+                await writable.close();
+            } else {
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                a.remove();
+            }
+        } catch (err) {
+            if (err.name !== 'AbortError') {
+                console.error("Export error:", err);
+            }
+        }
     }
+    const exportButtons = document.querySelectorAll('a[href*="/export/tasks"]');
+
+    exportButtons.forEach(btn => {
+        btn.addEventListener('click', function (e) {
+            e.preventDefault();
+            handleExport(this);
+        });
+    });
 });

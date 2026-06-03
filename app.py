@@ -9,6 +9,7 @@ import markdown
 import bleach
 import secrets
 import json
+import csv
 from datetime import datetime, timedelta
 from urllib.parse import urlparse
 from dotenv import load_dotenv
@@ -748,25 +749,49 @@ def version():
 @login_required
 @limiter.limit("5 per hour")
 def export_tasks():
-    user_todos = Todo.query.filter_by(user_id=current_user.id).all()
-    export_data = []
-    for t in user_todos:
-        export_data.append({
-            "task": t.task,
-            "completed": t.completed,
-            "categories": [c.name for c in t.categories]
-        })
-    json_string = json.dumps(export_data, indent=4)
-    buffer = io.BytesIO()
-    buffer.write(json_string.encode('utf-8'))
-    buffer.seek(0)
+    export_format = request.args.get('format', 'json').lower()
+    user_todos = Todo.query.filter_by(user_id=current_user.id).options(joinedload(Todo.categories)).all()
+    
+    if export_format == 'csv':
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow(['Task Description', 'Status', 'Associated Categories', 'Notes'])
+        for t in user_todos:
+            categories_str = ", ".join([c.name for c in t.categories])
+            status_str = "Completed" if t.completed else "Pending"
+            writer.writerow([t.task, status_str, categories_str, t.notes or ''])
+        
+        buffer = io.BytesIO()
+        buffer.write(output.getvalue().encode('utf-8'))
+        buffer.seek(0)
+        
+        return send_file(
+            buffer,
+            mimetype='text/csv',
+            as_attachment=True,
+            download_name=f'{current_user.username}_tasks_{datetime.now().strftime("%Y%m%d")}.csv'
+        )
+        
+    else: # Default to JSON export
+        export_data = []
+        for t in user_todos:
+            export_data.append({
+                "task": t.task,
+                "completed": t.completed,
+                "categories": [c.name for c in t.categories],
+                "notes": t.notes or ""
+            })
+        json_string = json.dumps(export_data, indent=4)
+        buffer = io.BytesIO()
+        buffer.write(json_string.encode('utf-8'))
+        buffer.seek(0)
 
-    return send_file(
-        buffer,
-        mimetype='application/json',
-        as_attachment=True,
-        download_name=f'{current_user.username}_tasks_{datetime.now().strftime("%Y%m%d")}.json'
-    )
+        return send_file(
+            buffer,
+            mimetype='application/json',
+            as_attachment=True,
+            download_name=f'{current_user.username}_tasks_{datetime.now().strftime("%Y%m%d")}.json'
+        )
 
 @app.route('/health')
 @limiter.exempt
