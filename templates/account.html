@@ -113,6 +113,15 @@
             </select>
           </div>
 
+          <div class="mb-4">
+            <label class="form-label fw-bold small text-muted text-uppercase">Category Ordering</label>
+            <select name="cat_sort_by" class="form-select pref-auto-save">
+              <option value="amount" {% if session.get('cat_sort_by')=='amount' %}selected{% endif %}>Amount of Tasks</option>
+              <option value="newest" {% if session.get('cat_sort_by')=='newest' %}selected{% endif %}>Newest First</option>
+              <option value="alpha" {% if session.get('cat_sort_by')=='alpha' %}selected{% endif %}>Alphabetical (A-Z)</option>
+            </select>
+          </div>
+
           <div class="form-check form-switch mb-3">
             <input class="form-check-input pref-auto-save" type="checkbox" name="auto_delete" id="autoDelete" 
             {% if session.get('auto_delete') %}checked{% endif %}>
@@ -212,11 +221,13 @@
   </div>
 </div>
 
+{% endblock %}
+
+{% block extra_scripts %}
 <script nonce="{{ g.nonce }}">
   const CSRF_TOKEN = "{{ csrf_token() }}";
   const PREF_URL = "{{ url_for('update_preferences') }}";
   const EXPORT_URL = "{{ url_for('export_tasks') }}";
 </script>
 <script src="{{ url_for('static', filename='js/account.js') }}"></script>
-
 {% endblock %}

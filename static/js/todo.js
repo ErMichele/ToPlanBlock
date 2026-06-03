@@ -91,7 +91,9 @@ class TagInputManager {
 
         if (!this.tags.includes(normalized)) {
             this.tags.push(normalized);
+            this.lastAddedTag = normalized;
             this.update();
+            this.lastAddedTag = null;
         }
 
         this.input.value = '';
@@ -118,9 +120,18 @@ class TagInputManager {
             .forEach(el => el.remove());
 
         this.tags.forEach(tag => {
+            const matchSuggestion = this.suggestions.querySelector(`.suggestion-item[data-value="${tag}"]`);
+            const customBadgeColor = matchSuggestion ? matchSuggestion.dataset.color : '#0d6efd';
+
             const badge = document.createElement('div');
-            badge.className =
-                'tag-badge badge rounded-pill bg-primary text-white d-flex align-items-center gap-2 px-3 py-2';
+            badge.className = 'tag-badge badge rounded-pill d-flex align-items-center gap-2 px-3 py-2';
+            
+            if (tag === this.lastAddedTag) {
+                badge.classList.add('tag-badge-animated');
+            }
+            
+            badge.style.backgroundColor = customBadgeColor;
+            badge.style.color = '#fff';
 
             badge.innerHTML = `
                 <span>${tag}</span>
@@ -165,6 +176,88 @@ class TagInputManager {
 }
 
 /**
+ * BulkSelectionManager - Reusable class to manage selection tracking across pagination
+ * Stores selected row IDs in a persistent JavaScript Set instance.
+ */
+class BulkSelectionManager {
+    constructor(options = {}) {
+        this.checkboxSelector = options.checkboxSelector || '.todo-checkbox';
+        this.selectAllSelector = options.selectAllSelector || '#selectAll';
+        this.bulkBtnSelector = options.bulkBtnSelector || '#bulkActionsBtn';
+        
+        this.selectedIds = new Set();
+        this.initEvents();
+    }
+
+    initEvents() {
+        // Use global event delegation to gracefully manage dynamically added AJAX elements
+        document.addEventListener('change', (e) => {
+            if (e.target.matches(this.checkboxSelector)) {
+                this.handleCheckboxChange(e.target);
+            } else if (e.target.matches(this.selectAllSelector)) {
+                this.handleSelectAllChange(e.target);
+            }
+        });
+    }
+
+    handleCheckboxChange(cb) {
+        if (cb.checked) {
+            this.selectedIds.add(cb.value);
+        } else {
+            this.selectedIds.delete(cb.value);
+        }
+        this.syncSelectAllState();
+        this.updateBulkButtonState();
+    }
+
+    handleSelectAllChange(selectAllCb) {
+        const checkboxes = document.querySelectorAll(this.checkboxSelector);
+        checkboxes.forEach(cb => {
+            cb.checked = selectAllCb.checked;
+            if (selectAllCb.checked) {
+                this.selectedIds.add(cb.value);
+            } else {
+                this.selectedIds.delete(cb.value);
+            }
+        });
+        this.updateBulkButtonState();
+    }
+
+    syncUI() {
+        const checkboxes = document.querySelectorAll(this.checkboxSelector);
+        checkboxes.forEach(cb => {
+            cb.checked = this.selectedIds.has(cb.value);
+        });
+        this.syncSelectAllState();
+        this.updateBulkButtonState();
+    }
+
+    syncSelectAllState() {
+        const selectAllCb = document.querySelector(this.selectAllSelector);
+        if (selectAllCb) {
+            const checkboxes = document.querySelectorAll(this.checkboxSelector);
+            selectAllCb.checked = checkboxes.length > 0 && [...checkboxes].every(cb => cb.checked);
+        }
+    }
+
+    updateBulkButtonState() {
+        const bulkBtn = document.querySelector(this.bulkBtnSelector);
+        if (bulkBtn) {
+            bulkBtn.disabled = this.selectedIds.size === 0;
+        }
+    }
+
+    clear() {
+        this.selectedIds.clear();
+        this.syncUI();
+    }
+
+    getIds() {
+        return Array.from(this.selectedIds);
+    }
+}
+
+/**
  * TodoAJAXManager - Handles AJAX interactions for the ToDo app
  * Intercepts form submissions and link clicks to perform AJAX requests,
  * updates the UI dynamically, and manages loading states and toasts.
@@ -175,8 +268,78 @@ class TodoAJAXManager {
     }
 
     init() {
+        this.bulkManager = new BulkSelectionManager({
+            checkboxSelector: '.todo-checkbox',
+            selectAllSelector: '#selectAll',
+            bulkBtnSelector: '#bulkActionsBtn'
+        });
+        
+        // Tracks chosen category filters across AJAX pagination renders
+        this.selectedCategories = new Set();
+        this.initCategories();
         this.bindGlobalEvents();
-        this.bindBulkLogic();
+    }
+
+    initCategories() {
+        const filterInput = document.getElementById('filter-category-input');
+        if (filterInput && filterInput.value.trim()) {
+            filterInput.value.split(',').forEach(cat => {
+                const trimmed = cat.trim();
+                if (trimmed) {
+                    this.selectedCategories.add(trimmed);
+                }
+            });
+        }
+    }
+
+    hasCategory(catName) {
+        return [...this.selectedCategories].some(c => c.toUpperCase() === catName.toUpperCase());
+    }
+
+    deleteCategory(catName) {
+        for (const c of this.selectedCategories) {
+            if (c.toUpperCase() === catName.toUpperCase()) {
+                this.selectedCategories.delete(c);
+            }
+        }
+    }
+
+    syncCategoryUI() {
+        const filterInput = document.getElementById('filter-category-input');
+        if (filterInput) {
+            filterInput.value = Array.from(this.selectedCategories).join(',');
+        }
+
+        document.querySelectorAll('.category-filter-item').forEach(item => {
+            const catName = item.getAttribute('data-cat-name');
+            const catColor = item.getAttribute('data-cat-color');
+            const checkIconSpan = item.querySelector('.category-check-icon');
+            const badgeSpan = item.querySelector('.badge');
+
+            if (this.hasCategory(catName)) {
+                if (checkIconSpan) {
+                    checkIconSpan.innerHTML = `<i class="bi bi-check-circle-fill" style="color: ${catColor}; font-size: 1.1rem;"></i>`;
+                }
+                if (badgeSpan) {
+                    badgeSpan.className = 'badge px-3 py-2 rounded-pill text-white border';
+                    badgeSpan.style.backgroundColor = catColor;
+                    badgeSpan.style.borderColor = catColor; 
+                    badgeSpan.style.color = '#fff';
+                    badgeSpan.style.opacity = '1';
+                }
+            } else {
+                if (checkIconSpan) {
+                    checkIconSpan.innerHTML = '<i class="bi bi-circle text-muted" style="font-size: 1.1rem;"></i>';
+                }
+                if (badgeSpan) {
+                    badgeSpan.className = 'badge px-3 py-2 rounded-pill text-body border';
+                    badgeSpan.style.backgroundColor = 'var(--bs-body-secondary)';
+                    badgeSpan.style.borderColor = 'var(--bs-border-color)';
+                    badgeSpan.style.color = 'var(--bs-body-color)';
+                    badgeSpan.style.opacity = '0.85';
+                }
+            }
+        });
     }
 
     bindGlobalEvents() {
@@ -186,6 +349,52 @@ class TodoAJAXManager {
             document.body.classList.remove('modal-open');
             document.body.style.removeProperty('padding-right');
             document.body.style.removeProperty('overflow');
+        });
+
+        document.addEventListener('shown.bs.modal', (e) => {
+            const modal = e.target;
+            if (modal.querySelector('.modal-task-checkbox') || modal.querySelector('.task-modal-search')) {
+                this.updateCategoryModalState(modal);
+                
+                const searchInput = modal.querySelector('.task-modal-search');
+                if (searchInput) {
+                    searchInput.value = '';
+                    modal.querySelectorAll('.modal-task-row').forEach(row => {
+                        row.classList.remove('d-none');
+                        row.classList.add('d-flex');
+                    });
+                    searchInput.focus();
+                }
+            }
+        });
+
+        document.addEventListener('input', (e) => {
+            if (e.target.matches('.task-modal-search')) {
+                const filterValue = e.target.value.toLowerCase().trim();
+                const modal = e.target.closest('.modal');
+                if (!modal) return;
+                
+                modal.querySelectorAll('.modal-task-row').forEach(row => {
+                    const textSpan = row.querySelector('.task-text-span');
+                    const textContent = textSpan ? textSpan.textContent.toLowerCase() : row.textContent.toLowerCase();
+                    if (textContent.includes(filterValue)) {
+                        row.classList.remove('d-none');
+                        row.classList.add('d-flex');
+                    } else {
+                        row.classList.remove('d-flex');
+                        row.classList.add('d-none');
+                    }
+                });
+            }
+        });
+
+        document.addEventListener('change', (e) => {
+            if (e.target.matches('.modal-task-checkbox')) {
+                const modal = e.target.closest('.modal');
+                if (modal) {
+                    this.updateCategoryModalState(modal);
+                }
+            }
         });
 
         document.addEventListener('submit', (e) => {
@@ -201,7 +410,8 @@ class TodoAJAXManager {
                 ajaxForms.some(sel => form.matches(sel)) ||
                 form.action?.includes('/toggle') ||
                 form.action?.includes('/delete') ||
-                form.action?.includes('/edit');
+                form.action?.includes('/edit') ||
+                form.action?.includes('/category');
 
             if (!shouldHandle) return;
 
@@ -211,13 +421,40 @@ class TodoAJAXManager {
         });
 
         document.addEventListener('click', (e) => {
+            const toggleZone = e.target.closest('.category-toggle-zone');
+            if (toggleZone) {
+                e.preventDefault();
+                this.toggleCategoryFilter(toggleZone);
+                return;
+            }
+
             const link = e.target.closest('.ajax-filter-trigger');
 
             if (!link) return;
 
             e.preventDefault();
 
-            this.loadPage(link.href);
+            // Clear the selection set tracking state if the user clicks the "Clear Filters" trigger
+            if (link.textContent.includes('Clear') || link.querySelector('.bi-trash3')) {
+                this.selectedCategories.clear();
+            }
+
+            let url = link.href;
+            
+            if (link.id === 'apply-filters-btn') {
+                const filterInput = document.getElementById('filter-category-input');
+                const categoriesValue = filterInput ? filterInput.value : '';
+                const baseUrl = link.getAttribute('data-base-url') || url;
+                
+                let finalUrl = baseUrl;
+                if (categoriesValue) {
+                    const separator = finalUrl.includes('?') ? '&' : '?';
+                    finalUrl += separator + 'category=' + encodeURIComponent(categoriesValue);
+                }
+                url = finalUrl;
+            }
+
+            this.loadPage(url);
         });
 
         document.addEventListener('show.bs.modal', (event) => {
@@ -226,12 +463,53 @@ class TodoAJAXManager {
             if (!button) return;
 
             const url = button.dataset.url;
-            const form = document.getElementById('confirmDeleteForm');
+            const form = event.target.querySelector('form');
 
             if (url && form) {
                 form.action = url;
             }
         });
+    }
+
+    // --- NEW: Dynamic updates to row backgrounds and chosen counts ---
+    updateCategoryModalState(modalElement) {
+        const totalChecked = modalElement.querySelectorAll('.modal-task-checkbox:checked').length;
+        const counterBadge = modalElement.querySelector('.target-counter');
+        if (counterBadge) {
+            counterBadge.textContent = `${totalChecked} selected`;
+        }
+        
+        modalElement.querySelectorAll('.modal-task-row').forEach(row => {
+            const checkbox = row.querySelector('.modal-task-checkbox');
+            if (checkbox && checkbox.checked) {
+                row.classList.add('modal-task-row-active');
+            } else {
+                row.classList.remove('modal-task-row-active');
+            }
+        });
+    }
+
+    toggleCategoryFilter(toggleZone) {
+        const item = toggleZone.closest('.category-filter-item');
+        if (!item) return;
+
+        const catName = item.getAttribute('data-cat-name');
+        if (!catName) return;
+
+        const badgeSpan = item.querySelector('.badge');
+        if (badgeSpan) {
+            badgeSpan.classList.remove('badge-pop');
+            void badgeSpan.offsetWidth; 
+            badgeSpan.classList.add('badge-pop');
+        }
+
+        if (this.hasCategory(catName)) {
+            this.deleteCategory(catName);
+        } else {
+            this.selectedCategories.add(catName);
+        }
+
+        this.syncCategoryUI();
     }
 
     async submitForm(form) {
@@ -241,11 +519,17 @@ class TodoAJAXManager {
             const formData = new FormData(form);
 
             if (form.id === 'bulk-form') {
-                document
-                    .querySelectorAll('.todo-checkbox:checked')
-                    .forEach(cb => {
-                        formData.append('todo_ids', cb.value);
+                if (this.bulkManager) {
+                    this.bulkManager.getIds().forEach(id => {
+                        formData.append('todo_ids', id);
                     });
+                } else {
+                    document
+                        .querySelectorAll('.todo-checkbox:checked')
+                        .forEach(cb => {
+                            formData.append('todo_ids', cb.value);
+                        });
+                }
 
                 if (
                     document.activeElement &&
@@ -273,12 +557,16 @@ class TodoAJAXManager {
                 const data = await response.json();
 
                 if (!response.ok) {
-                    throw new Error(data.error || 'Request failed');
+                    throw new Error(data.message || data.error || 'Request failed');
+                }
+
+                this.closeOpenModal();
+                
+                if (form.id === 'bulk-form' && this.bulkManager) {
+                    this.bulkManager.clear();
                 }
 
                 await this.refreshCurrentPage();
-
-                this.closeOpenModal();
 
                 window.showToast?.(
                     data.message || 'Success!',
@@ -286,6 +574,11 @@ class TodoAJAXManager {
                 );
             } else {
                 const html = await response.text();
+                
+                if (form.id === 'bulk-form' && this.bulkManager) {
+                    this.bulkManager.clear();
+                }
+
                 this.replacePageContent(html);
             }
         } catch (err) {
@@ -350,6 +643,7 @@ class TodoAJAXManager {
         }
 
         this.reinitializeUI();
+        this.handleEmptyPage();
     }
 
     reinitializeUI() {
@@ -359,43 +653,49 @@ class TodoAJAXManager {
                 new TagInputManager(wrapper);
             });
 
-        this.bindBulkLogic();
-    }
-
-    bindBulkLogic() {
-        const selectAll = document.getElementById('selectAll');
-        const checkboxes = document.querySelectorAll('.todo-checkbox');
-        const bulkBtn = document.getElementById('bulkActionsBtn');
-
-        const updateState = () => {
-            const anyChecked = [...checkboxes].some(cb => cb.checked);
-
-            if (bulkBtn) {
-                bulkBtn.disabled = !anyChecked;
-            }
-
-            if (selectAll) {
-                selectAll.checked =
-                    checkboxes.length > 0 &&
-                    [...checkboxes].every(cb => cb.checked);
-            }
-        };
-
-        if (selectAll) {
-            selectAll.addEventListener('change', () => {
-                checkboxes.forEach(cb => {
-                    cb.checked = selectAll.checked;
-                });
-
-                updateState();
-            });
+        if (this.bulkManager) {
+            this.bulkManager.syncUI();
         }
 
-        checkboxes.forEach(cb => {
-            cb.addEventListener('change', updateState);
+        // Restores active selections to the sidebar items following an AJAX render
+        this.syncCategoryUI();
+    }
+
+    handleEmptyPage() {
+        const checkboxes = document.querySelectorAll('.todo-checkbox');
+        // If the view contains tasks, no fallback action is required
+        if (checkboxes.length > 0) return;
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const currentPage = parseInt(urlParams.get('page')) || 1;
+
+        // If we are on page 1, an empty task view is valid (no tasks left in database)
+        if (currentPage <= 1) return;
+
+        let targetPage = currentPage - 1;
+        let maxPageFound = 1;
+
+        // Inspect the updated pagination elements to determine the actual maximum page limit
+        const pageLinks = document.querySelectorAll('a[href*="page="]');
+        pageLinks.forEach(link => {
+            try {
+                const href = link.getAttribute('href');
+                const url = new URL(href, window.location.origin);
+                const p = parseInt(url.searchParams.get('page'));
+                if (!isNaN(p) && p > maxPageFound) {
+                    maxPageFound = p;
+                }
+            } catch (e) {}
         });
 
-        updateState();
+        if (maxPageFound < currentPage) {
+            targetPage = maxPageFound;
+        }
+
+        // Maintain any query parameters (like categories or search terms) while transitioning the page
+        urlParams.set('page', targetPage);
+        const newUrl = window.location.pathname + '?' + urlParams.toString();
+        this.loadPage(newUrl);
     }
 
     closeOpenModal() {

@@ -89,18 +89,24 @@ class User(db.Model, UserMixin):
     profile_pic_id = db.Column(db.String(100), nullable=True) 
     created_at = db.Column(db.DateTime, default=datetime.now)
     todos = db.relationship('Todo', backref='owner', lazy=True, cascade='all, delete-orphan')
+    categories = db.relationship('Category', backref='owner', lazy=True, cascade='all, delete-orphan')
+
     @property
     def profile_pic_url(self):
         if not self.profile_pic_id:
             return None
-        
         folder = f"ToPlanBlock/{os.getenv('BRANCH', 'dev')}/profile_pics"
         return f"https://res.cloudinary.com/{os.getenv('CLOUDINARY_CLOUD_NAME')}/image/upload/{folder}/{self.profile_pic_id}"
     
 class Category(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), unique=True, nullable=False)
+    name = db.Column(db.String(100), nullable=False)
+    color = db.Column(db.String(7), default='#0d6efd', nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    is_locked = db.Column(db.Boolean, default=False, nullable=False)
     todos = db.relationship('Todo', secondary='todo_category', back_populates='categories')
+    
+    __table_args__ = (db.UniqueConstraint('name', 'user_id', name='_category_user_uc'),)
 
 todo_category = db.Table(
     'todo_category',
@@ -125,12 +131,18 @@ def allowed_file(filename):
     """Check if the file has an allowed extension."""
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
+def parse_categories_string(csv_string):
+    """Parses a comma-separated string of categories into a clean, sanitized list of uppercase names."""
+    if not csv_string:
+        return []
+    return [c.strip().upper() for c in csv_string.split(',') if c.strip()]
+
 def toggle_category_string(current_str, toggle_name):
     """Helper to add/remove a category name from a comma-separated string."""
     if not current_str:
         return toggle_name
     
-    parts = [p.strip().upper() for p in current_str.split(',') if p.strip()]
+    parts = parse_categories_string(current_str)
     toggle_name = toggle_name.strip().upper()
     
     if toggle_name in parts:
@@ -139,6 +151,14 @@ def toggle_category_string(current_str, toggle_name):
         parts.append(toggle_name)
     
     return ",".join(parts)
+
+def cleanup_unlocked_categories(user_id):
+    """Deletes categories with 0 tasks that are not locked."""
+    unlocked_categories = Category.query.filter_by(user_id=user_id, is_locked=False).all()
+    for cat in unlocked_categories:
+        if len(cat.todos) == 0:
+            db.session.delete(cat)
+    db.session.commit()
 
 @cache.cached(timeout=3600) # This function is cached for 1 hour
 def github_api_request():
@@ -206,16 +226,11 @@ def render_markdown(text):
 def toggle(todo_id):
     t = Todo.query.filter_by(id=todo_id, user_id=current_user.id).first_or_404()
     t.completed = not t.completed
-    
     msg = 'Task updated.'
     if session.get('auto_delete') and t.completed:
-        cats = list(t.categories)
         db.session.delete(t)
         db.session.commit()
-        for cat in cats:
-            if not cat.todos:
-                db.session.delete(cat)
-        db.session.commit()
+        cleanup_unlocked_categories(current_user.id)
         msg = 'Task completed and auto-deleted.'
     else:
         db.session.commit()
@@ -228,19 +243,16 @@ def toggle(todo_id):
                             category=request.args.get('category', ''), 
                             page=request.args.get('page', 1),
                             search=request.args.get('search', ''),
-                            status=request.args.get('status', 'all')))
+                            status=request.args.get('status', 'all'),
+                            cat_page=request.args.get('cat_page', 1)))
 
 @app.post('/todo/<int:todo_id>/delete')
 @login_required
 def delete(todo_id):
     t = Todo.query.filter_by(id=todo_id, user_id=current_user.id).first_or_404()
-    cats = list(t.categories)
     db.session.delete(t)
     db.session.commit()
-    for cat in cats:
-        if not cat.todos:
-            db.session.delete(cat)
-    db.session.commit()
+    cleanup_unlocked_categories(current_user.id)
 
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         return {"status": "success", "message": "Task deleted."}, 200
@@ -249,7 +261,8 @@ def delete(todo_id):
                             category=request.args.get('category', ''), 
                             page=request.args.get('page', 1),
                             search=request.args.get('search', ''),
-                            status=request.args.get('status', 'all')))
+                            status=request.args.get('status', 'all'),
+                            cat_page=request.args.get('cat_page', 1)))
     
 @app.post('/todo/<int:todo_id>/edit')
 @login_required
@@ -257,14 +270,17 @@ def edit(todo_id):
     t = Todo.query.filter_by(id=todo_id, user_id=current_user.id).first_or_404()
     task_text = request.form.get('task', '').strip()
     notes_text = request.form.get('notes', '').strip()
-    cat_list = [c.strip().upper() for c in request.form.get('categories_csv', '').split(',') if c.strip()]
+    cat_list = parse_categories_string(request.form.get('categories_csv', ''))
     
     if task_text:
         t.task = task_text
         t.notes = notes_text if notes_text else None
         t.categories = [] 
         for clean_name in cat_list:
-            cat = Category.query.filter_by(name=clean_name).first() or Category(name=clean_name)
+            cat = Category.query.filter_by(name=clean_name, user_id=current_user.id).first()
+            if not cat:
+                cat = Category(name=clean_name, user_id=current_user.id, color='#0d6efd')
+                db.session.add(cat)
             if cat not in t.categories:
                 t.categories.append(cat)
         db.session.commit()
@@ -277,7 +293,8 @@ def edit(todo_id):
                             category=request.args.get('category', ''), 
                             page=request.args.get('page', 1),
                             search=request.args.get('search', ''),
-                            status=request.args.get('status', 'all')))
+                            status=request.args.get('status', 'all'),
+                            cat_page=request.args.get('cat_page', 1)))
     
 @app.post('/todo/bulk')
 @login_required
@@ -289,35 +306,23 @@ def bulk_action():
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             return {"status": "error", "message": "No tasks selected."}, 400
         flash('No tasks were selected.', 'warning')
-        return redirect(url_for('todo', category=request.args.get('category', ''), page=request.args.get('page', 1)))
+        return redirect(url_for('todo', category=request.args.get('category', ''), page=request.args.get('page', 1), cat_page=request.args.get('cat_page', 1)))
 
     todos = Todo.query.filter(Todo.id.in_(todo_ids), Todo.user_id == current_user.id).all()
     
     if action == 'toggle':
         auto_delete = session.get('auto_delete')
-        affected_cats = set()
         for t in todos:
             t.completed = not t.completed 
             if auto_delete and t.completed:
-                affected_cats.update([cat for cat in t.categories])
                 db.session.delete(t)
         db.session.commit()
-        if auto_delete:
-            for cat in affected_cats:
-                if not cat.todos:
-                    db.session.delete(cat)
-            db.session.commit()
-            
+        cleanup_unlocked_categories(current_user.id)
     elif action == 'delete':
-        affected_cats = set()
         for t in todos:
-            affected_cats.update([cat for cat in t.categories])
             db.session.delete(t)
         db.session.commit()
-        for cat in affected_cats:
-            if not cat.todos:
-                db.session.delete(cat)
-        db.session.commit()
+        cleanup_unlocked_categories(current_user.id)
 
     msg = "Bulk update completed."
     if action == 'delete':
@@ -336,7 +341,131 @@ def bulk_action():
                             category=request.args.get('category', ''), 
                             page=request.args.get('page', 1),
                             search=request.args.get('search', ''),
-                            status=request.args.get('status', 'all')))
+                            status=request.args.get('status', 'all'),
+                            cat_page=request.args.get('cat_page', 1)))
+
+@app.post('/category/add')
+@login_required
+def add_category():
+    name = request.form.get('name', '').strip().upper()
+    color = request.form.get('color', '#0d6efd').strip()
+    task_ids = request.form.getlist('task_ids')
+
+    if not name:
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return {"status": "error", "message": "Category name is required."}, 400
+        flash('Category name is required.', 'danger')
+        return redirect(url_for('todo'))
+
+    existing = Category.query.filter_by(name=name, user_id=current_user.id).first()
+    if existing:
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return {"status": "error", "message": "Category already exists."}, 400
+        flash('Category already exists.', 'warning')
+        return redirect(url_for('todo'))
+
+    cat = Category(name=name, color=color, user_id=current_user.id)
+    db.session.add(cat)
+    
+    for tid in task_ids:
+        if tid.isdigit():
+            t = Todo.query.filter_by(id=int(tid), user_id=current_user.id).first()
+            if t:
+                cat.todos.append(t)
+                
+    db.session.commit()
+
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return {"status": "success", "message": "Category created successfully!"}, 200
+
+    flash('Category created successfully!', 'success')
+    shown_category = f"{name}"
+    if request.args.get('category'):
+        shown_category += f",{request.args.get('category')}"
+    
+    return redirect(url_for('todo', category=shown_category, page=request.args.get('page', 1), search=request.args.get('search', ''), status=request.args.get('status', 'all'), cat_page=request.args.get('cat_page', 1)))
+
+@app.post('/category/<int:cat_id>/edit')
+@login_required
+def edit_category(cat_id):
+    cat = Category.query.filter_by(id=cat_id, user_id=current_user.id).first_or_404()
+    name = request.form.get('name', '').strip().upper()
+    color = request.form.get('color', '#0d6efd').strip()
+    task_ids = request.form.getlist('task_ids')
+
+    if not name:
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return {"status": "error", "message": "Name cannot be empty."}, 400
+        flash('Category name cannot be empty.', 'danger')
+        return redirect(url_for('todo'))
+
+    existing = Category.query.filter_by(name=name, user_id=current_user.id).first()
+    if existing and existing.id != cat.id:
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return {"status": "error", "message": "Another category has this name."}, 400
+        flash('Another category already has this name.', 'warning')
+        return redirect(url_for('todo'))
+
+    cat.name = name
+    cat.color = color
+    cat.todos = []
+    
+    for tid in task_ids:
+        if tid.isdigit():
+            t = Todo.query.filter_by(id=int(tid), user_id=current_user.id).first()
+            if t:
+                cat.todos.append(t)
+
+    db.session.commit()
+
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return {"status": "success", "message": "Category updated successfully!"}, 200
+
+    flash('Category updated successfully!', 'success')
+    shown_category = f"{cat.name}"
+    if request.args.get('category'):
+        shown_category += f",{request.args.get('category')}"
+    return redirect(url_for('todo', category=shown_category, page=request.args.get('page', 1), search=request.args.get('search', ''), status=request.args.get('status', 'all'), cat_page=request.args.get('cat_page', 1)))
+
+@app.post('/category/<int:cat_id>/delete')
+@login_required
+def delete_category(cat_id):
+    cat = Category.query.filter_by(id=cat_id, user_id=current_user.id).first_or_404()
+    
+    if cat.is_locked:
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return {"status": "error", "message": "Cannot delete a locked category! Unlock it first."}, 400
+        flash('Cannot delete a locked category.', 'danger')
+        return redirect(url_for('todo', category=request.args.get('category'), page=request.args.get('page', 1), search=request.args.get('search', ''), status=request.args.get('status', 'all'), cat_page=request.args.get('cat_page', 1)))
+    
+    db.session.delete(cat)
+    db.session.commit()
+
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return {"status": "success", "message": "Category deleted."}, 200
+
+    flash('Category deleted.', 'info')
+    updated_category_param = toggle_category_string(request.args.get('category', ''), cat.name)
+    return redirect(url_for('todo', category=updated_category_param, page=request.args.get('page', 1), search=request.args.get('search', ''), status=request.args.get('status', 'all'), cat_page=request.args.get('cat_page', 1)))
+
+@app.post('/category/<int:cat_id>/toggle_lock')
+@login_required
+def toggle_category_lock(cat_id):
+    cat = Category.query.filter_by(id=cat_id, user_id=current_user.id).first_or_404()
+    cat.is_locked = not cat.is_locked
+    db.session.commit()
+
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        status_msg = f"Category '{cat.name}' locked." if cat.is_locked else f"Category '{cat.name}' unlocked."
+        return {"status": "success", "message": status_msg}, 200
+
+    flash(f"Category status updated.", 'info')
+    return redirect(url_for('todo', 
+                            category=request.args.get('category', ''), 
+                            page=request.args.get('page', 1), 
+                            search=request.args.get('search', ''), 
+                            status=request.args.get('status', 'all'),
+                            cat_page=request.args.get('cat_page', 1)))
 
 @app.post('/update_preferences')
 @login_required
@@ -344,9 +473,9 @@ def update_preferences():
     session['auto_delete'] = 'auto_delete' in request.form
     session['confirm_delete'] = 'confirm_delete' in request.form
     session['sort_by'] = request.form.get('sort_by', 'newest')
+    session['cat_sort_by'] = request.form.get('cat_sort_by', 'amount')
     session['theme'] = request.form.get('theme', 'system')
     
-    # Check if request is AJAX
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         return {"status": "success"}, 200
         
@@ -356,28 +485,16 @@ def update_preferences():
 @app.post('/account/delete')
 @login_required
 def delete_account():
-    user_id = current_user.id
     if current_user.profile_pic_url:
         folder = f"ToPlanBlock/{os.getenv('BRANCH', 'dev')}/profile_pics"
         public_id = f"{folder}/{current_user.profile_pic_id}"
         cloudinary.uploader.destroy(public_id, invalidate=True)
-    user_todos = Todo.query.filter_by(user_id=user_id).all()
-    affected_cats = set()
-    for t in user_todos:
-        for cat in t.categories:
-            affected_cats.add(cat.id)
 
     db.session.delete(current_user)
     db.session.commit()
 
     logout_user()
     session.clear()
-
-    for cat_id in affected_cats:
-        c = db.session.get(Category, cat_id)
-        if c and not c.todos:
-            db.session.delete(c)
-    db.session.commit()
     
     flash('Account and all associated data have been permanently deleted.', 'info')
     return redirect(url_for('landing'))
@@ -541,73 +658,86 @@ def todo():
     if request.method == 'POST':
         task_text = request.form.get('task', '').strip()
         notes_text = request.form.get('notes', '').strip()
-        cat_list = [c.strip().upper() for c in request.form.get('categories_csv', '').split(',') if c.strip()]
+        cat_list = parse_categories_string(request.form.get('categories_csv', ''))
         
         if task_text:
             new_todo = Todo(task=task_text, notes=notes_text if notes_text else None, user_id=current_user.id)
+            db.session.add(new_todo)
             for clean_name in cat_list:
-                cat = Category.query.filter_by(name=clean_name).first() or Category(name=clean_name)
+                cat = Category.query.filter_by(name=clean_name, user_id=current_user.id).first()
+                if not cat:
+                    cat = Category(name=clean_name, user_id=current_user.id, color='#0d6efd')
+                    db.session.add(cat)
                 if cat not in new_todo.categories:
                     new_todo.categories.append(cat)
-            db.session.add(new_todo)
             db.session.commit()
 
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                 return {"status": "success", "message": "Task added!"}, 200
             
             flash('Task added!', 'success')
-            return redirect(url_for('todo', category=request.args.get('category', ''), page=request.args.get('page', 1), search=request.args.get('search', ''), status=request.args.get('status', 'all')))
+            return redirect(url_for('todo', category=request.args.get('category', ''), page=request.args.get('page', 1), search=request.args.get('search', ''), status=request.args.get('status', 'all'), cat_page=request.args.get('cat_page', 1)))
 
     page = request.args.get('page', 1, type=int)
+    cat_page = request.args.get('cat_page', 1, type=int)
     selected_category_input = request.args.get('category', '')
     search_query = request.args.get('search', '').strip()
     status_filter = request.args.get('status', 'all').lower()
     q = Todo.query.options(joinedload(Todo.categories)).filter_by(user_id=current_user.id)
     
-    # Keyword Search (Case-insensitive)
     if search_query:
         q = q.filter(Todo.task.ilike(f"%{search_query}%"))
 
-    # Category Filter
     if selected_category_input:
-        cat_filter_list = [c.strip().upper() for c in selected_category_input.split(',') if c.strip()]
+        cat_filter_list = parse_categories_string(selected_category_input)
         for cat_name in cat_filter_list:
             q = q.filter(Todo.categories.any(Category.name == cat_name))
 
-    # Status Filtering
     if status_filter == 'active':
         q = q.filter(Todo.completed == False)
     elif status_filter == 'completed':
         q = q.filter(Todo.completed == True)
 
-    # Sorting
     sort_pref = session.get('sort_by', 'newest')
     if sort_pref == 'alpha':
         q = q.order_by(Todo.completed.asc(), Todo.task.asc())
     elif sort_pref == 'oldest':
         q = q.order_by(Todo.completed.asc(), Todo.id.asc())
-    else:  # Default to 'newest'
+    else: # newest
         q = q.order_by(Todo.completed.asc(), Todo.id.desc())
 
+    total_filtered_tasks = q.distinct().count()
+    completed_filtered_tasks = q.filter(Todo.completed == True).distinct().count()
+    progress_percent = int((completed_filtered_tasks / total_filtered_tasks * 100)) if total_filtered_tasks > 0 else 0
     pagination = q.distinct().paginate(page=page, per_page=10, error_out=False)
     
-    # Calculate progress bar percentage for tasks currently on page
-    page_items = pagination.items
-    total_on_page = len(page_items)
-    completed_on_page = sum(1 for t in page_items if t.completed)
-    progress_percent = int((completed_on_page / total_on_page * 100)) if total_on_page > 0 else 0
+    cat_sort_pref = session.get('cat_sort_by', 'amount')
+    base_q = Category.query.filter_by(user_id=current_user.id)
+    if cat_sort_pref == 'alpha':
+        categories_query = base_q.order_by(Category.is_locked.desc(), Category.name.asc())
+    elif cat_sort_pref == 'newest':
+        categories_query = base_q.order_by(Category.is_locked.desc(), Category.id.desc())
+    else: # amount
+        categories_query = (base_q.outerjoin(Category.todos)
+                        .group_by(Category.id)
+                        .order_by(Category.is_locked.desc(), db.func.count(Todo.id).desc(), Category.name.asc()))
+    
+    all_categories = base_q.order_by(Category.name.asc()).all()
+    categories_pagination = categories_query.paginate(page=cat_page, per_page=9, error_out=False)
 
-    user_cat_ids = db.session.query(Category.id).join(Todo.categories).filter(Todo.user_id == current_user.id).distinct()
-    categories = Category.query.filter(Category.id.in_(user_cat_ids)).order_by(Category.name).all()
+    all_tasks = Todo.query.filter_by(user_id=current_user.id).order_by(Todo.task.asc()).all()
 
     return render_template('todo.html', 
-                         pagination=pagination,
-                         categories=categories, 
-                         selected_category=selected_category_input, 
-                         search_query=search_query,
-                         status_filter=status_filter,
-                         progress_percent=progress_percent,
-                         toggle_cat=toggle_category_string)
+                        pagination=pagination,
+                        categories_pagination=categories_pagination,
+                        categories=categories_pagination.items,
+                        all_categories=all_categories,
+                        all_tasks=all_tasks,
+                        selected_category=selected_category_input, 
+                        search_query=search_query,
+                        status_filter=status_filter,
+                        progress_percent=progress_percent,
+                        toggle_cat=toggle_category_string)
 
 @app.route('/version')
 def version():
