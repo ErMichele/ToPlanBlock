@@ -9,7 +9,7 @@
       </div>
       <div class="card-body p-4">
         <form method="POST" id="todo-form"
-          action="{{ url_for('todo', category=selected_category, page=pagination.page, search=search_query, status=status_filter) }}">
+          action="{{ url_for('todo', category=selected_category, page=pagination.page, search=search_query, status=status_filter, cat_page=categories_pagination.page) }}">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
 
           <div class="mb-3">
@@ -32,7 +32,7 @@
             <input type="hidden" name="categories_csv" class="tags-hidden-input">
 
             <div class="suggestions-list shadow rounded-bottom">
-              {% for c in categories %}
+              {% for c in all_categories %}
               <div class="suggestion-item" data-value="{{ c.name }}" data-color="{{ c.color }}"
                 style="border-left: 4px solid {{ c.color }};">{{ c.name }}</div>
               {% endfor %}
@@ -82,7 +82,7 @@
             </div>
 
             <div class="d-flex align-items-center gap-2">
-              <form action="{{ url_for('toggle_category_lock', cat_id=c.id) }}" method="POST" class="d-inline m-0 p-0">
+              <form action="{{ url_for('toggle_category_lock', cat_id=c.id, category=selected_category, page=pagination.page, search=search_query, status=status_filter, cat_page=categories_pagination.page) }}" method="POST" class="d-inline m-0 p-0">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button type="submit" class="btn btn-sm p-0 border-0 bg-transparent"
                   title="{{ 'Unpin Category' if c.is_locked else 'Pin Category' }}">
@@ -101,12 +101,12 @@
 
               {% if session.get('confirm_delete', True) %}
               <button type="button" class="btn btn-sm text-danger p-0 border-0 bg-transparent"
-                data-url="{{ url_for('delete_category', cat_id=c.id) }}" data-bs-toggle="modal"
+                data-url="{{ url_for('delete_category', cat_id=c.id, category=selected_category, page=pagination.page, search=search_query, status=status_filter, cat_page=categories_pagination.page) }}" data-bs-toggle="modal"
                 data-bs-target="#deleteCategoryModal" title="Delete Category">
                 <i class="bi bi-trash"></i>
               </button>
               {% else %}
-              <form method="POST" action="{{ url_for('delete_category', cat_id=c.id) }}" class="d-inline m-0 p-0">
+              <form method="POST" action="{{ url_for('delete_category', cat_id=c.id, category=selected_category, page=pagination.page, search=search_query, status=status_filter, cat_page=categories_pagination.page) }}" class="d-inline m-0 p-0">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
                 <button type="submit" class="btn btn-sm text-danger p-0 border-0 bg-transparent">
                   <i class="bi bi-trash"></i>
@@ -119,15 +119,42 @@
           <li class="text-muted fst-italic py-2 list-group-item bg-transparent border-0">No categories yet.</li>
           {% endfor %}
         </ul>
+        {% if categories_pagination.pages > 1 %}
+        <nav class="mt-3">
+          <ul class="pagination pagination-sm justify-content-center m-0">
+            <li class="page-item {% if not categories_pagination.has_prev %}disabled{% endif %}">
+              <a class="page-link border-0 bg-body shadow-sm me-1 ajax-filter-trigger"
+                href="{{ url_for('todo', category=selected_category, page=pagination.page, search=search_query, status=status_filter, cat_page=categories_pagination.prev_num) if categories_pagination.has_prev else '#' }}"><i
+                  class="bi bi-chevron-left"></i></a>
+            </li>
+            {% for page_num in categories_pagination.iter_pages(left_edge=1, right_edge=1, left_current=1, right_current=1) %}
+            {% if page_num %}
+            <li class="page-item {% if page_num == categories_pagination.page %}active{% endif %}">
+              <a class="page-link border-0 shadow-sm mx-1 rounded-3 ajax-filter-trigger {{ 'bg-primary text-white' if page_num == categories_pagination.page else 'bg-body text-body' }}"
+                href="{{ url_for('todo', category=selected_category, page=pagination.page, search=search_query, status=status_filter, cat_page=page_num) }}">{{
+                page_num }}</a>
+            </li>
+            {% else %}
+            <li class="page-item disabled"><span class="page-link border-0 bg-transparent text-muted">...</span></li>
+            {% endif %}
+            {% endfor %}
+            <li class="page-item {% if not categories_pagination.has_next %}disabled{% endif %}">
+              <a class="page-link border-0 bg-body shadow-sm ms-1 ajax-filter-trigger"
+                href="{{ url_for('todo', category=selected_category, page=pagination.page, search=search_query, status=status_filter, cat_page=categories_pagination.next_num) if categories_pagination.has_next else '#' }}"><i
+                  class="bi bi-chevron-right"></i></a>
+            </li>
+          </ul>
+        </nav>
+        {% endif %}
 
         <div class="d-flex gap-2 mt-3 pt-3 border-top">
           <a href="#" id="apply-filters-btn"
-            data-base-url="{{ url_for('todo', status=status_filter, search=search_query) }}"
+            data-base-url="{{ url_for('todo', status=status_filter, search=search_query, cat_page=categories_pagination.page) }}"
             class="btn btn-sm btn-primary flex-fill rounded-pill fw-bold ajax-filter-trigger">
             <i class="bi bi-funnel-fill me-1"></i>Apply Filters
           </a>
           {% if selected_category %}
-          <a href="{{ url_for('todo', search=search_query, status=status_filter) }}"
+          <a href="{{ url_for('todo', search=search_query, status=status_filter, cat_page=categories_pagination.page) }}"
             class="btn btn-sm btn-outline-danger flex-fill rounded-pill fw-bold ajax-filter-trigger">
             <i class="bi bi-trash3 me-1"></i>Clear
           </a>
@@ -143,10 +170,11 @@
         <div class="row g-3 align-items-center">
           <div class="col-md-7">
             <form method="GET"
-              action="{{ url_for('todo', category=selected_category, status=status_filter, search=search_query) }}"
+              action="{{ url_for('todo', category=selected_category, status=status_filter, search=search_query, cat_page=categories_pagination.page) }}"
               class="d-flex gap-2" id="ajax-search-form">
               <input type="hidden" name="category" value="{{ selected_category }}">
               <input type="hidden" name="status" value="{{ status_filter }}">
+              <input type="hidden" name="cat_page" value="{{ categories_pagination.page }}">
               <div class="input-group">
                 <span class="input-group-text bg-body-tertiary border-0"><i class="bi bi-search text-muted"></i></span>
                 <input type="text" name="search" class="form-control bg-body-tertiary border-0"
@@ -159,7 +187,7 @@
             <div class="nav nav-pills bg-body-tertiary p-1 rounded-pill w-100 justify-content-between" role="group"
               id="status-pills-box">
               {% for stat in ['all', 'active', 'completed'] %}
-              <a href="{{ url_for('todo', category=selected_category, status=stat, search=search_query) }}"
+              <a href="{{ url_for('todo', category=selected_category, status=stat, search=search_query, cat_page=categories_pagination.page) }}"
                 class="nav-link flex-fill text-center rounded-pill py-1 small fw-bold ajax-filter-trigger {{ 'active shadow-sm' if (status_filter == stat or (stat == 'all' and not status_filter)) else 'text-body' }}">
                 {{ stat.capitalize() if stat != 'completed' else 'Done' }}
               </a>
@@ -242,7 +270,7 @@
     </div>
 
     <form id="bulk-form" method="POST"
-      action="{{ url_for('bulk_action', category=selected_category, page=pagination.page) }}" style="display:none;">
+      action="{{ url_for('bulk_action', category=selected_category, page=pagination.page, search=search_query, status=status_filter, cat_page=categories_pagination.page) }}" style="display:none;">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
     </form>
     {% endif %}
@@ -289,7 +317,7 @@
             <div class="col-auto">
               <div class="d-flex gap-1">
                 <form method="POST"
-                  action="{{ url_for('toggle', todo_id=t.id, category=selected_category, page=pagination.page, search=search_query, status=status_filter) }}">
+                  action="{{ url_for('toggle', todo_id=t.id, category=selected_category, page=pagination.page, search=search_query, status=status_filter, cat_page=categories_pagination.page) }}">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
                   <button
                     class="btn btn-sm btn-icon rounded-circle {% if t.completed %}btn-success{% else %}btn-outline-primary{% endif %}"
@@ -305,13 +333,13 @@
 
                 {% if session.get('confirm_delete', True) %}
                 <button class="btn btn-sm btn-outline-danger btn-icon rounded-circle"
-                  data-url="{{ url_for('delete', todo_id=t.id, category=selected_category, page=pagination.page, search=search_query, status=status_filter) }}"
+                  data-url="{{ url_for('delete', todo_id=t.id, category=selected_category, page=pagination.page, search=search_query, status=status_filter, cat_page=categories_pagination.page) }}"
                   data-bs-toggle="modal" data-bs-target="#deleteModal" title="Delete Task">
                   <i class="bi bi-trash3"></i>
                 </button>
                 {% else %}
                 <form method="POST"
-                  action="{{ url_for('delete', todo_id=t.id, category=selected_category, page=pagination.page, search=search_query, status=status_filter) }}">
+                  action="{{ url_for('delete', todo_id=t.id, category=selected_category, page=pagination.page, search=search_query, status=status_filter, cat_page=categories_pagination.page) }}">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
                   <button class="btn btn-sm btn-outline-danger btn-icon rounded-circle">
                     <i class="bi bi-trash3"></i>
@@ -332,7 +360,7 @@
               <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <form method="POST"
-              action="{{ url_for('edit', todo_id=t.id, category=selected_category, page=pagination.page, search=search_query, status=status_filter) }}">
+              action="{{ url_for('edit', todo_id=t.id, category=selected_category, page=pagination.page, search=search_query, status=status_filter, cat_page=categories_pagination.page) }}">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
               <div class="modal-body p-4">
                 <div class="mb-3">
@@ -356,7 +384,7 @@
                     value="{{ t.categories|map(attribute='name')|join(',') }}">
 
                   <div class="suggestions-list shadow rounded-bottom">
-                    {% for c in categories %}
+                    {% for c in all_categories %}
                     <div class="suggestion-item" data-value="{{ c.name }}" data-color="{{ c.color }}"
                       style="border-left: 4px solid {{ c.color }};">{{ c.name }}</div>
                     {% endfor %}
@@ -387,14 +415,14 @@
       <ul class="pagination justify-content-center">
         <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
           <a class="page-link rounded-start-pill border-0 bg-body shadow-sm me-1 ajax-filter-trigger"
-            href="{{ url_for('todo', category=selected_category, page=pagination.prev_num, search=search_query, status=status_filter) if pagination.has_prev else '#' }}"><i
+            href="{{ url_for('todo', category=selected_category, page=pagination.prev_num, search=search_query, status=status_filter, cat_page=categories_pagination.page) if pagination.has_prev else '#' }}"><i
               class="bi bi-chevron-left"></i></a>
         </li>
         {% for page_num in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
         {% if page_num %}
         <li class="page-item {% if page_num == pagination.page %}active{% endif %}">
           <a class="page-link border-0 shadow-sm mx-1 rounded-3 ajax-filter-trigger {{ 'bg-primary text-white' if page_num == pagination.page else 'bg-body text-body' }}"
-            href="{{ url_for('todo', category=selected_category, page=page_num, search=search_query, status=status_filter) }}">{{
+            href="{{ url_for('todo', category=selected_category, page=page_num, search=search_query, status=status_filter, cat_page=categories_pagination.page) }}">{{
             page_num }}</a>
         </li>
         {% else %}
@@ -403,7 +431,7 @@
         {% endfor %}
         <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
           <a class="page-link rounded-end-pill border-0 bg-body shadow-sm ms-1 ajax-filter-trigger"
-            href="{{ url_for('todo', category=selected_category, page=pagination.next_num, search=search_query, status=status_filter) if pagination.has_next else '#' }}"><i
+            href="{{ url_for('todo', category=selected_category, page=pagination.next_num, search=search_query, status=status_filter, cat_page=categories_pagination.page) if pagination.has_next else '#' }}"><i
               class="bi bi-chevron-right"></i></a>
         </li>
       </ul>
@@ -458,7 +486,7 @@
         <h5 class="modal-title fw-bold">Create Independent Category</h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
-      <form method="POST" action="{{ url_for('add_category') }}">
+      <form method="POST" action="{{ url_for('add_category', category=selected_category, page=pagination.page, search=search_query, status=status_filter, cat_page=categories_pagination.page) }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
         <div class="modal-body p-4">
           <div class="mb-3">
@@ -525,7 +553,7 @@
         <h5 class="modal-title fw-bold">Modify Category</h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
-      <form method="POST" action="{{ url_for('edit_category', cat_id=c.id, page=page, search=search, status=status) }}">
+      <form method="POST" action="{{ url_for('edit_category', cat_id=c.id, category=selected_category, page=pagination.page, search=search_query, status=status_filter, cat_page=categories_pagination.page) }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
         <div class="modal-body p-4">
           <div class="mb-3">

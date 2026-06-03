@@ -273,7 +273,73 @@ class TodoAJAXManager {
             selectAllSelector: '#selectAll',
             bulkBtnSelector: '#bulkActionsBtn'
         });
+        
+        // Tracks chosen category filters across AJAX pagination renders
+        this.selectedCategories = new Set();
+        this.initCategories();
         this.bindGlobalEvents();
+    }
+
+    initCategories() {
+        const filterInput = document.getElementById('filter-category-input');
+        if (filterInput && filterInput.value.trim()) {
+            filterInput.value.split(',').forEach(cat => {
+                const trimmed = cat.trim();
+                if (trimmed) {
+                    this.selectedCategories.add(trimmed);
+                }
+            });
+        }
+    }
+
+    hasCategory(catName) {
+        return [...this.selectedCategories].some(c => c.toUpperCase() === catName.toUpperCase());
+    }
+
+    deleteCategory(catName) {
+        for (const c of this.selectedCategories) {
+            if (c.toUpperCase() === catName.toUpperCase()) {
+                this.selectedCategories.delete(c);
+            }
+        }
+    }
+
+    syncCategoryUI() {
+        const filterInput = document.getElementById('filter-category-input');
+        if (filterInput) {
+            filterInput.value = Array.from(this.selectedCategories).join(',');
+        }
+
+        document.querySelectorAll('.category-filter-item').forEach(item => {
+            const catName = item.getAttribute('data-cat-name');
+            const catColor = item.getAttribute('data-cat-color');
+            const checkIconSpan = item.querySelector('.category-check-icon');
+            const badgeSpan = item.querySelector('.badge');
+
+            if (this.hasCategory(catName)) {
+                if (checkIconSpan) {
+                    checkIconSpan.innerHTML = `<i class="bi bi-check-circle-fill" style="color: ${catColor}; font-size: 1.1rem;"></i>`;
+                }
+                if (badgeSpan) {
+                    badgeSpan.className = 'badge px-3 py-2 rounded-pill text-white border';
+                    badgeSpan.style.backgroundColor = catColor;
+                    badgeSpan.style.borderColor = catColor; 
+                    badgeSpan.style.color = '#fff';
+                    badgeSpan.style.opacity = '1';
+                }
+            } else {
+                if (checkIconSpan) {
+                    checkIconSpan.innerHTML = '<i class="bi bi-circle text-muted" style="font-size: 1.1rem;"></i>';
+                }
+                if (badgeSpan) {
+                    badgeSpan.className = 'badge px-3 py-2 rounded-pill text-body border';
+                    badgeSpan.style.backgroundColor = 'var(--bs-body-secondary)';
+                    badgeSpan.style.borderColor = 'var(--bs-border-color)';
+                    badgeSpan.style.color = 'var(--bs-body-color)';
+                    badgeSpan.style.opacity = '0.85';
+                }
+            }
+        });
     }
 
     bindGlobalEvents() {
@@ -368,6 +434,11 @@ class TodoAJAXManager {
 
             e.preventDefault();
 
+            // Clear the selection set tracking state if the user clicks the "Clear Filters" trigger
+            if (link.textContent.includes('Clear') || link.querySelector('.bi-trash3')) {
+                this.selectedCategories.clear();
+            }
+
             let url = link.href;
             
             if (link.id === 'apply-filters-btn') {
@@ -422,52 +493,23 @@ class TodoAJAXManager {
         const item = toggleZone.closest('.category-filter-item');
         if (!item) return;
 
-        const filterInput = document.getElementById('filter-category-input');
-        if (!filterInput) return;
-
         const catName = item.getAttribute('data-cat-name');
-        const catColor = item.getAttribute('data-cat-color');
+        if (!catName) return;
 
-        let currentVal = filterInput.value.trim();
-        let activeCats = currentVal ? currentVal.split(',') : [];
-
-        const index = activeCats.findIndex(c => c.toUpperCase() === catName.toUpperCase());
-        const checkIconSpan = item.querySelector('.category-check-icon');
         const badgeSpan = item.querySelector('.badge');
-
         if (badgeSpan) {
             badgeSpan.classList.remove('badge-pop');
             void badgeSpan.offsetWidth; 
             badgeSpan.classList.add('badge-pop');
         }
 
-        if (index > -1) {
-            activeCats.splice(index, 1);
-            if (checkIconSpan) {
-                checkIconSpan.innerHTML = '<i class="bi bi-circle text-muted" style="font-size: 1.1rem;"></i>';
-            }
-            if (badgeSpan) {
-                badgeSpan.className = 'badge px-3 py-2 rounded-pill text-body border';
-                badgeSpan.style.backgroundColor = 'var(--bs-body-secondary)';
-                badgeSpan.style.borderColor = 'var(--bs-border-color)';
-                badgeSpan.style.color = 'var(--bs-body-color)';
-                badgeSpan.style.opacity = '0.85';
-            }
+        if (this.hasCategory(catName)) {
+            this.deleteCategory(catName);
         } else {
-            activeCats.push(catName);
-            if (checkIconSpan) {
-                checkIconSpan.innerHTML = `<i class="bi bi-check-circle-fill" style="color: ${catColor}; font-size: 1.1rem;"></i>`;
-            }
-            if (badgeSpan) {
-                badgeSpan.className = 'badge px-3 py-2 rounded-pill text-white border';
-                badgeSpan.style.backgroundColor = catColor;
-                badgeSpan.style.borderColor = catColor; 
-                badgeSpan.style.color = '#fff';
-                badgeSpan.style.opacity = '1';
-            }
+            this.selectedCategories.add(catName);
         }
 
-        filterInput.value = activeCats.join(',');
+        this.syncCategoryUI();
     }
 
     async submitForm(form) {
@@ -614,6 +656,9 @@ class TodoAJAXManager {
         if (this.bulkManager) {
             this.bulkManager.syncUI();
         }
+
+        // Restores active selections to the sidebar items following an AJAX render
+        this.syncCategoryUI();
     }
 
     handleEmptyPage() {

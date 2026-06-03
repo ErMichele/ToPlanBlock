@@ -243,7 +243,8 @@ def toggle(todo_id):
                             category=request.args.get('category', ''), 
                             page=request.args.get('page', 1),
                             search=request.args.get('search', ''),
-                            status=request.args.get('status', 'all')))
+                            status=request.args.get('status', 'all'),
+                            cat_page=request.args.get('cat_page', 1)))
 
 @app.post('/todo/<int:todo_id>/delete')
 @login_required
@@ -260,7 +261,8 @@ def delete(todo_id):
                             category=request.args.get('category', ''), 
                             page=request.args.get('page', 1),
                             search=request.args.get('search', ''),
-                            status=request.args.get('status', 'all')))
+                            status=request.args.get('status', 'all'),
+                            cat_page=request.args.get('cat_page', 1)))
     
 @app.post('/todo/<int:todo_id>/edit')
 @login_required
@@ -291,7 +293,8 @@ def edit(todo_id):
                             category=request.args.get('category', ''), 
                             page=request.args.get('page', 1),
                             search=request.args.get('search', ''),
-                            status=request.args.get('status', 'all')))
+                            status=request.args.get('status', 'all'),
+                            cat_page=request.args.get('cat_page', 1)))
     
 @app.post('/todo/bulk')
 @login_required
@@ -303,7 +306,7 @@ def bulk_action():
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             return {"status": "error", "message": "No tasks selected."}, 400
         flash('No tasks were selected.', 'warning')
-        return redirect(url_for('todo', category=request.args.get('category', ''), page=request.args.get('page', 1)))
+        return redirect(url_for('todo', category=request.args.get('category', ''), page=request.args.get('page', 1), cat_page=request.args.get('cat_page', 1)))
 
     todos = Todo.query.filter(Todo.id.in_(todo_ids), Todo.user_id == current_user.id).all()
     
@@ -338,7 +341,8 @@ def bulk_action():
                             category=request.args.get('category', ''), 
                             page=request.args.get('page', 1),
                             search=request.args.get('search', ''),
-                            status=request.args.get('status', 'all')))
+                            status=request.args.get('status', 'all'),
+                            cat_page=request.args.get('cat_page', 1)))
 
 @app.post('/category/add')
 @login_required
@@ -379,7 +383,7 @@ def add_category():
     if request.args.get('category'):
         shown_category += f",{request.args.get('category')}"
     
-    return redirect(url_for('todo', category=shown_category, page=request.args.get('page', 1), search=request.args.get('search', ''), status=request.args.get('status', 'all')))
+    return redirect(url_for('todo', category=shown_category, page=request.args.get('page', 1), search=request.args.get('search', ''), status=request.args.get('status', 'all'), cat_page=request.args.get('cat_page', 1)))
 
 @app.post('/category/<int:cat_id>/edit')
 @login_required
@@ -421,7 +425,7 @@ def edit_category(cat_id):
     shown_category = f"{cat.name}"
     if request.args.get('category'):
         shown_category += f",{request.args.get('category')}"
-    return redirect(url_for('todo', category=shown_category, page=request.args.get('page', 1), search=request.args.get('search', ''), status=request.args.get('status', 'all')))
+    return redirect(url_for('todo', category=shown_category, page=request.args.get('page', 1), search=request.args.get('search', ''), status=request.args.get('status', 'all'), cat_page=request.args.get('cat_page', 1)))
 
 @app.post('/category/<int:cat_id>/delete')
 @login_required
@@ -432,7 +436,7 @@ def delete_category(cat_id):
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             return {"status": "error", "message": "Cannot delete a locked category! Unlock it first."}, 400
         flash('Cannot delete a locked category.', 'danger')
-        return redirect(url_for('todo', category=request.args.get('category'), page=request.args.get('page', 1), search=request.args.get('search', ''), status=request.args.get('status', 'all')))
+        return redirect(url_for('todo', category=request.args.get('category'), page=request.args.get('page', 1), search=request.args.get('search', ''), status=request.args.get('status', 'all'), cat_page=request.args.get('cat_page', 1)))
     
     db.session.delete(cat)
     db.session.commit()
@@ -442,7 +446,7 @@ def delete_category(cat_id):
 
     flash('Category deleted.', 'info')
     updated_category_param = toggle_category_string(request.args.get('category', ''), cat.name)
-    return redirect(url_for('todo', category=updated_category_param, page=request.args.get('page', 1), search=request.args.get('search', ''), status=request.args.get('status', 'all')))
+    return redirect(url_for('todo', category=updated_category_param, page=request.args.get('page', 1), search=request.args.get('search', ''), status=request.args.get('status', 'all'), cat_page=request.args.get('cat_page', 1)))
 
 @app.post('/category/<int:cat_id>/toggle_lock')
 @login_required
@@ -460,7 +464,8 @@ def toggle_category_lock(cat_id):
                             category=request.args.get('category', ''), 
                             page=request.args.get('page', 1), 
                             search=request.args.get('search', ''), 
-                            status=request.args.get('status', 'all')))
+                            status=request.args.get('status', 'all'),
+                            cat_page=request.args.get('cat_page', 1)))
 
 @app.post('/update_preferences')
 @login_required
@@ -671,9 +676,10 @@ def todo():
                 return {"status": "success", "message": "Task added!"}, 200
             
             flash('Task added!', 'success')
-            return redirect(url_for('todo', category=request.args.get('category', ''), page=request.args.get('page', 1), search=request.args.get('search', ''), status=request.args.get('status', 'all')))
+            return redirect(url_for('todo', category=request.args.get('category', ''), page=request.args.get('page', 1), search=request.args.get('search', ''), status=request.args.get('status', 'all'), cat_page=request.args.get('cat_page', 1)))
 
     page = request.args.get('page', 1, type=int)
+    cat_page = request.args.get('cat_page', 1, type=int)
     selected_category_input = request.args.get('category', '')
     search_query = request.args.get('search', '').strip()
     status_filter = request.args.get('status', 'all').lower()
@@ -708,19 +714,24 @@ def todo():
     cat_sort_pref = session.get('cat_sort_by', 'amount')
     base_q = Category.query.filter_by(user_id=current_user.id)
     if cat_sort_pref == 'alpha':
-        categories = base_q.order_by(Category.is_locked.desc(), Category.name.asc()).all()
+        categories_query = base_q.order_by(Category.is_locked.desc(), Category.name.asc())
     elif cat_sort_pref == 'newest':
-        categories = base_q.order_by(Category.is_locked.desc(), Category.id.desc()).all()
+        categories_query = base_q.order_by(Category.is_locked.desc(), Category.id.desc())
     else: # amount
-        categories = (base_q.outerjoin(Category.todos)
+        categories_query = (base_q.outerjoin(Category.todos)
                         .group_by(Category.id)
-                        .order_by(Category.is_locked.desc(), db.func.count(Todo.id).desc(), Category.name.asc())
-                        .all())
+                        .order_by(Category.is_locked.desc(), db.func.count(Todo.id).desc(), Category.name.asc()))
+    
+    all_categories = base_q.order_by(Category.name.asc()).all()
+    categories_pagination = categories_query.paginate(page=cat_page, per_page=9, error_out=False)
+
     all_tasks = Todo.query.filter_by(user_id=current_user.id).order_by(Todo.task.asc()).all()
 
     return render_template('todo.html', 
                         pagination=pagination,
-                        categories=categories,
+                        categories_pagination=categories_pagination,
+                        categories=categories_pagination.items,
+                        all_categories=all_categories,
                         all_tasks=all_tasks,
                         selected_category=selected_category_input, 
                         search_query=search_query,
