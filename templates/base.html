@@ -8,7 +8,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   <title>{% block title %}ToPlanBlock — Task Manager by ErMichele{% endblock %}</title>
-  <link rel="icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}">
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
 
   <meta name="description" content="ToPlanBlock — A clean, efficient task manager with categories, progress tracking, and smart filtering. Built as an educational project by ErMichele.">
   <meta name="keywords" content="ToPlanBlock, task manager, todo app, productivity, planner, categories, student project, ErMichele">
@@ -22,13 +22,13 @@
   <meta property="og:description" content="A modern task manager with categories, filtering, and progress tracking. Built by ErMichele.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="{{ request.url }}">
-  <meta property="og:image" content="{{ url_for('static', filename='favicon.png', _external=True) }}">
+  <meta property="og:image" content="{{ url_for('static', filename='favicon.svg', _external=True) }}">
   <meta property="og:site_name" content="ToPlanBlock">
 
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="ToPlanBlock — Smart Task Manager">
   <meta name="twitter:description" content="A clean and intuitive task manager built by ErMichele.">
-  <meta name="twitter:image" content="{{ url_for('static', filename='favicon.png', _external=True) }}">
+  <meta name="twitter:image" content="{{ url_for('static', filename='favicon.svg', _external=True) }}">
 
   <script type="application/ld+json">
   {
@@ -46,7 +46,7 @@
     },
     "description": "A clean, efficient task manager with categories, progress tracking, and smart filtering.",
     "url": "{{ request.url_root }}",
-    "image": "{{ url_for('static', filename='favicon.png', _external=True) }}",
+    "image": "{{ url_for('static', filename='favicon.svg', _external=True) }}",
     "codeRepository": "https://github.com/ermichele/toplanblock",
     "license": "https://opensource.org/licenses/MIT"
   }
@@ -74,7 +74,7 @@
   <nav class="navbar navbar-expand-lg bg-body-secondary fixed-top">
     <div class="container">
       <a class="navbar-brand d-flex align-items-center fw-bold" href="{{ url_for('landing') }}">
-        <img src="{{ url_for('static', filename='favicon.png') }}" alt="Logo" width="30" height="30" class="me-2">
+        <img src="{{ url_for('static', filename='favicon.svg') }}" alt="Logo" width="30" height="30" class="me-2">
         ToPlanBlock
       </a>
 
