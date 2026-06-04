@@ -38,13 +38,12 @@ function acceptCookies() {
 }
 
 function initThemeListener() {
-    const themePref = document.documentElement.getAttribute('data-theme-pref');
-
-    if (themePref === 'system') {
-        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+        const themePref = document.documentElement.getAttribute('data-theme-pref');
+        if (themePref === 'system') {
             document.documentElement.setAttribute('data-bs-theme', e.matches ? 'dark' : 'light');
-        });
-    }
+        }
+    });
 }
 
 window.toggleLoading = function(show) {
@@ -68,12 +67,12 @@ window.showToast = function(message, type = 'dark') {
 
     const toastId = 'toast-' + Date.now();
     const html = `
-        <div id="${toastId}" class=\"toast align-items-center text-white ${bgClass} border-0 shadow-lg mb-2\" role=\"alert\" aria-live=\"assertive\" aria-atomic=\"true\">
-            <div class=\"d-flex\">
-                <div class=\"toast-body\">
-                    <i class=\"bi bi-info-circle me-2\"></i>${message}
+        <div id="${toastId}" class="toast align-items-center text-white ${bgClass} border-0 shadow-lg mb-2" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="d-flex">
+                <div class="toast-body">
+                    <i class="bi bi-info-circle me-2"></i>${message}
                 </div>
-                <button type=\"button\" class=\"btn-close btn-close-white me-2 m-auto\" data-bs-dismiss=\"toast\"></button>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
             </div>
         </div>`;
     
