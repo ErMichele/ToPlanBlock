@@ -22,7 +22,8 @@ from flask_wtf.csrf import CSRFProtect
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_caching import Cache
-from sqlalchemy.orm import joinedload
+from flask_compress import Compress
+from sqlalchemy.orm import joinedload, selectinload # Added selectinload
 from sqlalchemy.exc import IntegrityError
 
 load_dotenv()
@@ -54,8 +55,8 @@ cloudinary.config(
 )
 
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
-    'pool_size': 5,
-    'max_overflow': 10,
+    'pool_size': 15,
+    'max_overflow': 25,
     'pool_recycle': 1800,
     'pool_pre_ping': True,
     'pool_timeout': 30
@@ -66,6 +67,7 @@ cache = Cache(app, config={'CACHE_TYPE': 'SimpleCache', 'CACHE_DEFAULT_TIMEOUT':
 # --- EXTENSIONS ---
 db = SQLAlchemy(app)
 migrate = Migrate(app, db, render_as_batch=True)
+Compress(app)
 bcrypt = Bcrypt(app)
 csrf = CSRFProtect(app)
 login_manager = LoginManager(app)
@@ -83,6 +85,8 @@ ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp'}
 
 # ---------------- Models ----------------
 class User(db.Model, UserMixin):
+    __tablename__ = 'user'
+    
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(150), unique=True, nullable=False)
     email = db.Column(db.String(150), unique=True, nullable=False)
@@ -100,10 +104,13 @@ class User(db.Model, UserMixin):
         return f"https://res.cloudinary.com/{os.getenv('CLOUDINARY_CLOUD_NAME')}/image/upload/{folder}/{self.profile_pic_id}"
     
 class Category(db.Model):
+    __tablename__ = 'category'
+    
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     color = db.Column(db.String(7), default='#0d6efd', nullable=False)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
+    created_at = db.Column(db.DateTime, default=datetime.now, nullable=False)
     is_locked = db.Column(db.Boolean, default=False, nullable=False)
     todos = db.relationship('Todo', secondary='todo_category', back_populates='categories')
     
@@ -111,17 +118,24 @@ class Category(db.Model):
 
 todo_category = db.Table(
     'todo_category',
-    db.Column('todo_id', db.Integer, db.ForeignKey('todo.id'), primary_key=True),
-    db.Column('category_id', db.Integer, db.ForeignKey('category.id'), primary_key=True)
+    db.Column('todo_id', db.Integer, db.ForeignKey('todo.id'), primary_key=True), # Removed redundant standalone index
+    db.Column('category_id', db.Integer, db.ForeignKey('category.id'), primary_key=True, index=True)
 )
 
 class Todo(db.Model):
+    __tablename__ = 'todo'
+
     id = db.Column(db.Integer, primary_key=True)
     task = db.Column(db.String(200), nullable=False)
     notes = db.Column(db.Text, nullable=True)
-    completed = db.Column(db.Boolean, default=False)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    completed = db.Column(db.Boolean, default=False) # Removed standalone index to prioritize compound index
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False) # Removed standalone index to prioritize compound index
+    created_at = db.Column(db.DateTime, default=datetime.now, nullable=False) # Removed standalone index to prioritize compound index
     categories = db.relationship('Category', secondary=todo_category, back_populates='todos')
+
+    __table_args__ = (
+        db.Index('ix_todo_user_completed_created', 'user_id', 'completed', 'created_at'),
+    )
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -154,11 +168,12 @@ def toggle_category_string(current_str, toggle_name):
     return ",".join(parts)
 
 def cleanup_unlocked_categories(user_id):
-    """Deletes categories with 0 tasks that are not locked."""
-    unlocked_categories = Category.query.filter_by(user_id=user_id, is_locked=False).all()
-    for cat in unlocked_categories:
-        if len(cat.todos) == 0:
-            db.session.delete(cat)
+    """Deletes categories with 0 tasks that are not locked in a single query."""
+    db.session.query(Category).filter(
+        Category.user_id == user_id,
+        Category.is_locked == False,
+        ~Category.todos.any()
+    ).delete(synchronize_session=False)
     db.session.commit()
 
 @cache.cached(timeout=3600) # This function is cached for 1 hour
@@ -166,7 +181,7 @@ def github_api_request():
     """Helper to make GitHub API requests with error handling."""
     url = "https://api.github.com/repos/ermichele/toplanblock/releases"
     try:
-        response = requests.get(url, headers={"User-Agent": "ToPlanBlock-App"}, timeout=10)
+        response = requests.get(url, headers={"User-Agent": "ToPlanBlock-App"}, timeout=1.5)
         if response.status_code == 200:
             return response.json()[:5]  # Return only the latest 5 releases
     except Exception as e:
@@ -276,14 +291,18 @@ def edit(todo_id):
     if task_text:
         t.task = task_text
         t.notes = notes_text if notes_text else None
-        t.categories = [] 
+        existing_cats = {c.name: c for c in Category.query.filter(
+            Category.name.in_(cat_list), 
+            Category.user_id == current_user.id
+        ).all()}
+        new_categories = []
         for clean_name in cat_list:
-            cat = Category.query.filter_by(name=clean_name, user_id=current_user.id).first()
+            cat = existing_cats.get(clean_name)
             if not cat:
                 cat = Category(name=clean_name, user_id=current_user.id, color='#0d6efd')
                 db.session.add(cat)
-            if cat not in t.categories:
-                t.categories.append(cat)
+            new_categories.append(cat)
+        t.categories = new_categories
         db.session.commit()
 
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -661,84 +680,109 @@ def todo():
         notes_text = request.form.get('notes', '').strip()
         cat_list = parse_categories_string(request.form.get('categories_csv', ''))
         
-        if task_text:
-            new_todo = Todo(task=task_text, notes=notes_text if notes_text else None, user_id=current_user.id)
-            db.session.add(new_todo)
+        if not task_text:
+            flash('Task name is required.', 'danger')
+            return redirect(url_for('todo'))
+            
+        new_todo = Todo(task=task_text, notes=notes_text if notes_text else None, user_id=current_user.id)
+        
+        if cat_list:
+            existing_cats = {c.name: c for c in Category.query.filter(
+                Category.name.in_(cat_list),
+                Category.user_id == current_user.id
+            ).all()}
+            
             for clean_name in cat_list:
-                cat = Category.query.filter_by(name=clean_name, user_id=current_user.id).first()
+                cat = existing_cats.get(clean_name)
                 if not cat:
                     cat = Category(name=clean_name, user_id=current_user.id, color='#0d6efd')
                     db.session.add(cat)
-                if cat not in new_todo.categories:
-                    new_todo.categories.append(cat)
-            db.session.commit()
-
-            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                return {"status": "success", "message": "Task added!"}, 200
+                new_todo.categories.append(cat)
+                
+        db.session.add(new_todo)
+        db.session.commit()
+        
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return {"status": "success", "message": "Task created successfully!"}, 200
             
-            flash('Task added!', 'success')
-            return redirect(url_for('todo', category=request.args.get('category', ''), page=request.args.get('page', 1), search=request.args.get('search', ''), status=request.args.get('status', 'all'), cat_page=request.args.get('cat_page', 1)))
+        flash('Task created successfully!', 'success')
+        return redirect(url_for('todo', category=request.args.get('category', ''), page=request.args.get('page', 1)))
 
+    # --- GET REQUEST OPTIMIZATIONS ---
     page = request.args.get('page', 1, type=int)
     cat_page = request.args.get('cat_page', 1, type=int)
-    selected_category_input = request.args.get('category', '')
     search_query = request.args.get('search', '').strip()
-    status_filter = request.args.get('status', 'all').lower()
-    q = Todo.query.options(joinedload(Todo.categories)).filter_by(user_id=current_user.id)
-    
+    status_filter = request.args.get('status', 'all').strip()
+    selected_category_input = request.args.get('category', '').strip()
+
+    # OPTIMIZATION 1: Eager load relations via selectinload to completely eliminate N+1 latency bugs
+    q = Todo.query.filter_by(user_id=current_user.id).options(selectinload(Todo.categories))
+
     if search_query:
         q = q.filter(Todo.task.ilike(f"%{search_query}%"))
-
-    if selected_category_input:
-        cat_filter_list = parse_categories_string(selected_category_input)
-        for cat_name in cat_filter_list:
-            q = q.filter(Todo.categories.any(Category.name == cat_name))
 
     if status_filter == 'active':
         q = q.filter(Todo.completed == False)
     elif status_filter == 'completed':
         q = q.filter(Todo.completed == True)
 
-    sort_pref = session.get('sort_by', 'newest')
-    if sort_pref == 'alpha':
-        q = q.order_by(Todo.completed.asc(), Todo.task.asc())
-    elif sort_pref == 'oldest':
-        q = q.order_by(Todo.completed.asc(), Todo.id.asc())
-    else: # newest
-        q = q.order_by(Todo.completed.asc(), Todo.id.desc())
+    if selected_category_input:
+        cat_names = parse_categories_string(selected_category_input)
+        if cat_names:
+            for cat_name in cat_names:
+                q = q.filter(Todo.categories.any(Category.name == cat_name))
 
-    total_filtered_tasks = q.distinct().count()
-    completed_filtered_tasks = q.filter(Todo.completed == True).distinct().count()
+    q = q.order_by(Todo.completed.asc(), Todo.created_at.desc())
+
+    # OPTIMIZATION 2: Leverage standard pagination to calculate counts automatically in exactly 2 roundtrips
+    pagination = q.paginate(page=page, per_page=10, error_out=False)
+    total_filtered_tasks = pagination.total
+    
+    completed_filtered_tasks = 0
+    if total_filtered_tasks > 0:
+        completed_filtered_tasks = q.filter(Todo.completed == True).count()
+        
     progress_percent = int((completed_filtered_tasks / total_filtered_tasks * 100)) if total_filtered_tasks > 0 else 0
-    pagination = q.distinct().paginate(page=page, per_page=10, error_out=False)
     
     cat_sort_pref = session.get('cat_sort_by', 'amount')
-    base_q = Category.query.filter_by(user_id=current_user.id)
+    base_q = Category.query.filter_by(user_id=current_user.id).options(selectinload(Category.todos))
+    
     if cat_sort_pref == 'alpha':
         categories_query = base_q.order_by(Category.is_locked.desc(), Category.name.asc())
     elif cat_sort_pref == 'newest':
-        categories_query = base_q.order_by(Category.is_locked.desc(), Category.id.desc())
-    else: # amount
+        categories_query = base_q.order_by(Category.is_locked.desc(), Category.created_at.desc())
+    elif cat_sort_pref == 'oldest':
+        categories_query = base_q.order_by(Category.is_locked.desc(), Category.created_at.asc())
+    else: 
         categories_query = (base_q.outerjoin(Category.todos)
-                        .group_by(Category.id)
-                        .order_by(Category.is_locked.desc(), db.func.count(Todo.id).desc(), Category.name.asc()))
+                            .group_by(Category.id)
+                            .order_by(Category.is_locked.desc(), db.func.count(Todo.id).desc(), Category.name.asc()))
     
-    all_categories = base_q.order_by(Category.name.asc()).all()
     categories_pagination = categories_query.paginate(page=cat_page, per_page=9, error_out=False)
 
-    all_tasks = Todo.query.filter_by(user_id=current_user.id).order_by(Todo.task.asc()).all()
+    # OPTIMIZATION 3: Use with_entities projection to avoid querying heavy unused properties across all entries
+    all_categories = Category.query.filter_by(user_id=current_user.id)\
+                                   .with_entities(Category.id, Category.name, Category.color)\
+                                   .order_by(Category.name.asc())\
+                                   .all()
+
+    # OPTIMIZATION 4: Selectively load only ID and Task values, bypassing massive Notes blocks down the wire
+    all_tasks = Todo.query.filter_by(user_id=current_user.id)\
+                          .with_entities(Todo.id, Todo.task)\
+                          .order_by(Todo.task.asc())\
+                          .all()
 
     return render_template('todo.html', 
-                        pagination=pagination,
-                        categories_pagination=categories_pagination,
-                        categories=categories_pagination.items,
-                        all_categories=all_categories,
-                        all_tasks=all_tasks,
-                        selected_category=selected_category_input, 
-                        search_query=search_query,
-                        status_filter=status_filter,
-                        progress_percent=progress_percent,
-                        toggle_cat=toggle_category_string)
+                           pagination=pagination,
+                           categories_pagination=categories_pagination,
+                           categories=categories_pagination.items,
+                           all_categories=all_categories,
+                           all_tasks=all_tasks,
+                           selected_category=selected_category_input, 
+                           search_query=search_query,
+                           status_filter=status_filter,
+                           progress_percent=progress_percent,
+                           toggle_cat=toggle_category_string)
 
 @app.route('/version')
 def version():
@@ -750,7 +794,10 @@ def version():
 @limiter.limit("5 per hour")
 def export_tasks():
     export_format = request.args.get('format', 'json').lower()
-    user_todos = Todo.query.filter_by(user_id=current_user.id).options(joinedload(Todo.categories)).all()
+    user_todos = Todo.query.filter_by(user_id=current_user.id)\
+                           .options(selectinload(Todo.categories))\
+                           .order_by(Todo.created_at.desc())\
+                           .all()
     
     if export_format == 'csv':
         output = io.StringIO()

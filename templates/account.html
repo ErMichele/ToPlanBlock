@@ -123,6 +123,8 @@
               </option>
               <option value="newest" {% if session.get('cat_sort_by')=='newest' %}selected{% endif %}>Newest First
               </option>
+              <option value="oldest" {% if session.get('cat_sort_by')=='oldest' %}selected{% endif %}>Oldest First
+              </option>
               <option value="alpha" {% if session.get('cat_sort_by')=='alpha' %}selected{% endif %}>Alphabetical (A-Z)
               </option>
             </select>

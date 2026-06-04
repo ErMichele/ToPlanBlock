@@ -32,7 +32,7 @@ document.addEventListener('DOMContentLoaded', function () {
             };
             reader.readAsDataURL(this.files[0]);
         } else {
-            profileImg.src = originalSrc;
+            cropperModal.hide();
         }
     });
 
@@ -40,7 +40,7 @@ document.addEventListener('DOMContentLoaded', function () {
         cropper = new Cropper(cropperImg, {
             aspectRatio: 1,
             viewMode: 1,
-            guides: false,
+            autoCropArea: 1
         });
     });
 
@@ -49,57 +49,52 @@ document.addEventListener('DOMContentLoaded', function () {
             cropper.destroy();
             cropper = null;
         }
-
-        if (!profileImg.src.startsWith('data:image')) {
-            fileInput.value = "";
+        if (!fileInput.value) {
+            profileImg.src = originalSrc;
         }
     });
 
-    saveCropBtn.addEventListener('click', () => {
-        const canvas = cropper.getCroppedCanvas({ width: 400, height: 400 });
+    saveCropBtn.addEventListener('click', function () {
+        if (cropper) {
+            cropper.getCroppedCanvas({ width: 400, height: 400 }).toBlob((blob) => {
+                const dataTransfer = new DataTransfer();
+                const file = new File([blob], "profile_pic.webp", { type: "image/webp" });
+                dataTransfer.items.add(file);
+                fileInput.files = dataTransfer.files;
 
-        canvas.toBlob((blob) => {
-            const originalFileName = fileInput.files && fileInput.files[0] ? fileInput.files[0].name : 'profile.jpg';
-            const croppedFile = new File([blob], originalFileName, { type: "image/jpeg" });
-            const dataTransfer = new DataTransfer();
-            dataTransfer.items.add(croppedFile);
-            fileInput.files = dataTransfer.files;
-            profileImg.src = canvas.toDataURL('image/jpeg');
-            profileImg.classList.remove('d-none');
-            fallbackAvatar.classList.add('d-none');
-            cropperModal.hide();
-            initialInfo = initialInfo;
-        }, 'image/jpeg');
+                const url = URL.createObjectURL(blob);
+                profileImg.src = url;
+                fallbackAvatar.classList.add('d-none');
+                profileImg.classList.remove('d-none');
+                cropperModal.hide();
+            }, 'image/webp', 0.85);
+        }
     });
 
-    const getFormState = (form) => {
-        const formData = new FormData(form);
-        const state = {};
-        for (let [key, value] of formData.entries()) {
-            if (['current_password', 'csrf_token'].includes(key)) continue;
-            state[key] = (key === 'picture') ? (value.name || "") : value;
-        }
-        return JSON.stringify(state);
-    };
+    let initialFormData = new FormData(infoForm);
+    let initialDataString = new URLSearchParams(initialFormData).toString();
 
-    let initialInfo = getFormState(infoForm);
+    window.addEventListener('beforeunload', function (e) {
+        if (skipCheck) return;
+        let currentFormData = new FormData(infoForm);
+        let currentDataString = new URLSearchParams(currentFormData).toString();
 
-    const isDirty = () => {
-        if (skipCheck) return false;
-        return getFormState(infoForm) !== initialInfo;
-    };
-
-    window.addEventListener('beforeunload', (e) => {
-        if (isDirty()) {
+        if (currentDataString !== initialDataString) {
             e.preventDefault();
+            e.returnValue = 'You have unsaved changes!';
         }
     });
 
     document.querySelectorAll('a').forEach(link => {
         link.addEventListener('click', function (e) {
-            if (this.getAttribute('href') === '#' || this.getAttribute('data-bs-toggle') || this.hostname !== window.location.hostname) return;
+            if (skipCheck) return;
+            let currentFormData = new FormData(infoForm);
+            let currentDataString = new URLSearchParams(currentFormData).toString();
 
-            if (isDirty()) {
+            const href = this.getAttribute('href');
+            if (!href || href.startsWith('#') || href.startsWith('javascript:')) return;
+
+            if (currentDataString !== initialDataString) {
                 e.preventDefault();
                 targetUrl = this.href;
                 unsavedModal.show();
@@ -107,72 +102,35 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
-    document.querySelectorAll('.pref-auto-save').forEach(input => {
-        input.addEventListener('change', async () => {
-            const formData = new FormData();
-            document.querySelectorAll('.pref-auto-save').forEach(i => {
-                if (i.type === 'checkbox') {
-                    if (i.checked) formData.append(i.name, 'on');
-                } else {
-                    formData.append(i.name, i.value);
-                }
-            });
-
-            formData.append('csrf_token', CSRF_TOKEN);
-
-            try {
-                const response = await fetch(PREF_URL, {
-                    method: 'POST',
-                    body: formData,
-                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
-                });
-
-                if (response.ok) {
-                    window.showToast("Preferences saved automatically.", "success");
-                    const theme = formData.get('theme');
-                    if (theme) {
-                        const target = theme === 'system'
-                            ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
-                            : theme;
-                        document.documentElement.setAttribute('data-bs-theme', target);
-                    }
-                }
-            } catch (err) {
-                console.error("Auto-save error:", err);
-            }
-        });
-    });
-
-    document.getElementById('confirmLeaveBtn').addEventListener('click', () => {
+    document.getElementById('confirmLeaveBtn').addEventListener('click', function () {
         skipCheck = true;
+        unsavedModal.hide();
         window.location.href = targetUrl;
     });
 
-    infoForm.addEventListener('submit', () => { skipCheck = true; });
+    infoForm.addEventListener('submit', function () {
+        skipCheck = true;
+        window.toggleLoading(true);
+    });
 
     async function handleExport(buttonElement) {
-        // Get the dynamic export URL from the button's href attribute
-        const exportUrl = buttonElement.getAttribute('href');
-        if (!exportUrl) return;
+        const href = buttonElement.getAttribute('href');
+        if (!href) return;
+
+        const urlObj = new URL(href, window.location.origin);
+        const format = urlObj.searchParams.get('format') || 'json';
+        const isCsv = format === 'csv';
+        const filename = `tasks_export_${new Date().toISOString().slice(0,10)}.${format}`;
 
         try {
-            const response = await fetch(exportUrl);
-            if (!response.ok) throw new Error('Export failed');
-            const disposition = response.headers.get('Content-Disposition');
-            let filename = `tasks_export_${new Date().toISOString().slice(0, 10)}`;
-            const isCsv = exportUrl.includes('format=csv') || (disposition && disposition.includes('.csv'));
-            const fileExt = isCsv ? '.csv' : '.json';
-            filename += fileExt;
+            window.toggleLoading(true);
+            const response = await fetch(href);
+            window.toggleLoading(false);
 
-            if (disposition && disposition.includes('filename=')) {
-                const filenameRegex = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/;
-                const matches = filenameRegex.exec(disposition);
-                if (matches != null && matches[1]) {
-                    filename = matches[1].replace(/['"]/g, '');
-                }
-            }
+            if (!response.ok) throw new Error('Export network error response.');
 
             const blob = await response.blob();
+
             if ('showSaveFilePicker' in window) {
                 const pickerOptions = {
                     suggestedName: filename,
@@ -199,13 +157,14 @@ document.addEventListener('DOMContentLoaded', function () {
                 a.remove();
             }
         } catch (err) {
+            window.toggleLoading(false);
             if (err.name !== 'AbortError') {
                 console.error("Export error:", err);
             }
         }
     }
-    const exportButtons = document.querySelectorAll('a[href*="/export/tasks"]');
 
+    const exportButtons = document.querySelectorAll('a[href*="/export/tasks"]');
     exportButtons.forEach(btn => {
         btn.addEventListener('click', function (e) {
             e.preventDefault();

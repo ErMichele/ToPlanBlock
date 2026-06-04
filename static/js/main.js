@@ -10,9 +10,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const toast = new bootstrap.Toast(el, { delay: 5000 });
         toast.show();
     });
+
     document.addEventListener('submit', (e) => {
+        const form = e.target;
+        if (form.classList.contains('ajax-form') || form.dataset.remote === "true") {
+            return;
+        }
         window.toggleLoading(true);
     });
+
     window.addEventListener('beforeunload', () => {
         window.toggleLoading(true);
     });
@@ -62,19 +68,21 @@ window.showToast = function(message, type = 'dark') {
 
     const toastId = 'toast-' + Date.now();
     const html = `
-        <div id="${toastId}" class="toast align-items-center text-white ${bgClass} border-0 shadow-lg mb-2" role="alert" aria-live="assertive" aria-atomic="true">
-            <div class="d-flex">
-                <div class="toast-body">
-                    <i class="bi bi-info-circle me-2"></i>${message}
+        <div id="${toastId}" class=\"toast align-items-center text-white ${bgClass} border-0 shadow-lg mb-2\" role=\"alert\" aria-live=\"assertive\" aria-atomic=\"true\">
+            <div class=\"d-flex\">
+                <div class=\"toast-body\">
+                    <i class=\"bi bi-info-circle me-2\"></i>${message}
                 </div>
-                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                <button type=\"button\" class=\"btn-close btn-close-white me-2 m-auto\" data-bs-dismiss=\"toast\"></button>
             </div>
         </div>`;
-
+    
     container.insertAdjacentHTML('beforeend', html);
     const el = document.getElementById(toastId);
     const toast = new bootstrap.Toast(el, { delay: 5000 });
     toast.show();
-    
-    el.addEventListener('hidden.bs.toast', () => el.remove());
+
+    el.addEventListener('hidden.bs.toast', () => {
+        el.remove();
+    });
 };
