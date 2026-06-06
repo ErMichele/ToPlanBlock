@@ -51,7 +51,7 @@
             <div class="mb-3">
               <label class="form-label fw-semibold">Username</label>
               <div class="input-group">
-                <span class="input-group-text bg-body-secondary"><i class="bi bi-at"></i></span>
+                <span class="input-group-text bg-body-secondary"><i class="bi bi-person"></i></span>
                 <input class="form-control" type="text" name="username" value="{{ current_user.username }}" required>
               </div>
             </div>
@@ -89,6 +89,17 @@
           </div>
         </div>
       </form>
+
+      <div class="card border-0 shadow-sm mb-4 bg-danger-subtle border-start border-4 border-danger">
+        <div class="card-body p-4">
+          <h4 class="text-danger fw-bold mb-2"><i class="bi bi-trash me-2"></i>Delete Account</h4>
+          <p class="small text-danger mb-3">Permanent action. All tasks, categories, and settings will be wiped.</p>
+          <button type="button" class="btn btn-danger btn-sm w-100" data-bs-toggle="modal"
+            data-bs-target="#deleteAccountModal">
+            Delete My Account
+          </button>
+        </div>
+      </div>
     </div>
 
     <div class="col-lg-5">
@@ -103,6 +114,28 @@
               <option value="dark" {% if session.get('theme')=='dark' %}selected{% endif %}>Dark Mode</option>
               <option value="light" {% if session.get('theme')=='light' %}selected{% endif %}>Light Mode</option>
               <option value="system" {% if session.get('theme')=='system' %}selected{% endif %}>System Default</option>
+            </select>
+          </div>
+
+          <div class="mb-4">
+            <label class="form-label fw-bold small text-muted text-uppercase">Color Tone</label>
+            <select name="ui_tone" class="form-select pref-auto-save">
+              <option value="blue" {% if session.get('ui_tone')=='blue' or not session.get('ui_tone') %}selected{% endif
+                %}>Blue</option>
+              <option value="purple" {% if session.get('ui_tone')=='purple' %}selected{% endif %}>Purple</option>
+              <option value="green" {% if session.get('ui_tone')=='green' %}selected{% endif %}>Green</option>
+              <option value="red" {% if session.get('ui_tone')=='red' %}selected{% endif %}>Red</option>
+              <option value="orange" {% if session.get('ui_tone')=='orange' %}selected{% endif %}>Orange</option>
+            </select>
+          </div>
+
+          <div class="mb-4">
+            <label class="form-label fw-bold small text-muted text-uppercase">Corner Styles</label>
+            <select name="corners" class="form-select pref-auto-save">
+              <option value="normal" {% if session.get('corners')=='normal' or not session.get('corners') %}selected{%
+                endif %}>Normal</option>
+              <option value="sharp" {% if session.get('corners')=='sharp' %}selected{% endif %}>Sharp</option>
+              <option value="modern" {% if session.get('corners')=='modern' %}selected{% endif %}>Modern</option>
             </select>
           </div>
 
@@ -149,8 +182,10 @@
       </div>
 
       <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-body-secondary border-bottom py-3">
+          <h5 class="card-title mb-0 fw-bold"><i class="bi bi-download me-2 text-primary"></i>Export Data</h5>
+        </div>
         <div class="card-body p-4">
-          <h6 class="fw-bold mb-2">Export My Data</h6>
           <p class="text-muted small">Download all your tasks and categories in your preferred portable format.</p>
           <div class="d-flex gap-2">
             <a href="{{ url_for('export_tasks', format='json') }}"
@@ -162,17 +197,6 @@
               <i class="bi bi-filetype-csv me-2"></i>CSV Export
             </a>
           </div>
-        </div>
-      </div>
-
-      <div class="card border-0 shadow-sm mb-4 bg-danger-subtle border-start border-4 border-danger">
-        <div class="card-body p-4">
-          <h6 class="text-danger fw-bold mb-2">Delete Account</h6>
-          <p class="small text-danger mb-3">Permanent action. All tasks, categories, and settings will be wiped.</p>
-          <button type="button" class="btn btn-danger btn-sm w-100" data-bs-toggle="modal"
-            data-bs-target="#deleteAccountModal">
-            Delete My Account
-          </button>
         </div>
       </div>
     </div>

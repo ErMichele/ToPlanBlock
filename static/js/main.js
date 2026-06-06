@@ -44,6 +44,18 @@ function initThemeListener() {
             document.documentElement.setAttribute('data-bs-theme', e.matches ? 'dark' : 'light');
         }
     });
+
+    const activeTone = document.documentElement.getAttribute('data-ui-tone');
+    if (!activeTone) {
+        // Fallback to standard blue default if the attribute isn't set yet
+        document.documentElement.setAttribute('data-ui-tone', 'blue');
+    }
+
+    const activeCorners = document.documentElement.getAttribute('data-corners');
+    if (!activeCorners) {
+        // Fallback to standard configuration if not set yet
+        document.documentElement.setAttribute('data-corners', 'normal');
+    }
 }
 
 window.toggleLoading = function(show) {

@@ -495,6 +495,8 @@ def update_preferences():
     session['sort_by'] = request.form.get('sort_by', 'newest')
     session['cat_sort_by'] = request.form.get('cat_sort_by', 'amount')
     session['theme'] = request.form.get('theme', 'system')
+    session['ui_tone'] = request.form.get('ui_tone', 'blue')
+    session['corners'] = request.form.get('corners', 'normal')
     
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         return {"status": "success"}, 200

@@ -1,8 +1,12 @@
 <!DOCTYPE html>
 {% set theme_pref = session.get('theme', 'system') %}
-<html lang="en" data-theme-pref="{{ theme_pref }}"
-  data-bs-theme="{% if theme_pref != 'system' %}{{ theme_pref }}{% endif %}">
-
+{% set ui_tone_pref = session.get('ui_tone', 'blue') %}
+{% set corners_pref = session.get('corners', 'normal') %}
+<html lang="en" 
+      data-bs-theme="{{ session.get('theme', 'light') if session.get('theme') != 'system' else 'light' }}" 
+      data-theme-pref="{{ session.get('theme', 'system') }}"
+      data-ui-tone="{{ ui_tone_pref }}"
+      data-corners="{{ corners_pref }}">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">

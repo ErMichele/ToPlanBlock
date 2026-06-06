@@ -1,3 +1,174 @@
+
+[data-ui-tone] .btn-primary {
+  background-color: var(--bs-primary) !important;
+  border-color: var(--bs-primary) !important;
+  color: #fff !important;
+}
+[data-ui-tone] .btn-primary:hover,
+[data-ui-tone] .btn-primary:focus {
+  background-color: var(--bs-primary-hover) !important;
+  border-color: var(--bs-primary-hover) !important;
+}
+[data-ui-tone] .btn-primary:active,
+[data-ui-tone] .btn-primary.active {
+  background-color: var(--bs-primary-active) !important;
+  border-color: var(--bs-primary-active) !important;
+}
+[data-ui-tone] .form-control:focus,
+[data-ui-tone] .form-select:focus {
+  border-color: var(--bs-primary-focus-border) !important;
+  box-shadow: 0 0 0 0.25rem rgba(var(--bs-primary-rgb), 0.23) !important;
+}
+[data-ui-tone] .form-check-input:checked {
+  background-color: var(--bs-primary) !important;
+  border-color: var(--bs-primary) !important;
+}
+[data-ui-tone] .dropdown-item.active, 
+[data-ui-tone] .dropdown-item:active,
+[data-ui-tone] .nav-pills .nav-link.active {
+  background-color: var(--bs-primary) !important;
+  color: #fff !important;
+}
+
+/* --- 1. BLUE TONE (Standard Theme Archetype) --- */
+html[data-ui-tone="blue"] {
+  --bs-primary: #0d6efd;
+  --bs-primary-rgb: 13, 110, 253;
+  --bs-primary-hover: #0b5ed7;
+  --bs-primary-active: #0a58ca;
+  --bs-primary-focus-border: #86b7fe;
+  --bs-primary-bg-subtle: #e6f0ff;
+  --bs-primary-text-emphasis: #052c65;
+}
+html[data-bs-theme="dark"][data-ui-tone="blue"] {
+  --bs-primary: #6ea8fe;
+  --bs-primary-rgb: 110, 168, 254;
+  --bs-primary-hover: #5393f3;
+  --bs-primary-active: #3d7ee7;
+  --bs-primary-focus-border: #6ea8fe;
+  --bs-primary-bg-subtle: #031633;
+  --bs-primary-text-emphasis: #6ea8fe;
+}
+
+/* --- 2. PURPLE TONE --- */
+html[data-ui-tone="purple"] {
+  --bs-primary: #6f42c1;
+  --bs-primary-rgb: 111, 66, 193;
+  --bs-primary-hover: #59359a;
+  --bs-primary-active: #4c2d83;
+  --bs-primary-focus-border: #c5b3e6;
+  --bs-primary-bg-subtle: #f1eafc;
+  --bs-primary-text-emphasis: #2a1453;
+}
+html[data-bs-theme="dark"][data-ui-tone="purple"] {
+  --bs-primary: #a370f7;
+  --bs-primary-rgb: 163, 112, 247;
+  --bs-primary-hover: #8c52eb;
+  --bs-primary-active: #763bde;
+  --bs-primary-focus-border: #a370f7;
+  --bs-primary-bg-subtle: #160e26;
+  --bs-primary-text-emphasis: #a370f7;
+}
+
+/* --- 3. GREEN TONE --- */
+html[data-ui-tone="green"] {
+  --bs-primary: #198754;
+  --bs-primary-rgb: 25, 135, 84;
+  --bs-primary-hover: #157347;
+  --bs-primary-active: #146c43;
+  --bs-primary-focus-border: #a3cfbb;
+  --bs-primary-bg-subtle: #e1f0e9;
+  --bs-primary-text-emphasis: #0a3622;
+}
+html[data-bs-theme="dark"][data-ui-tone="green"] {
+  --bs-primary: #75b798;
+  --bs-primary-rgb: 117, 183, 152;
+  --bs-primary-hover: #5ca683;
+  --bs-primary-active: #44946f;
+  --bs-primary-focus-border: #75b798;
+  --bs-primary-bg-subtle: #051b11;
+  --bs-primary-text-emphasis: #75b798;
+}
+
+/* --- 4. RED TONE --- */
+html[data-ui-tone="red"] {
+  --bs-primary: #dc3545;
+  --bs-primary-rgb: 220, 53, 69;
+  --bs-primary-hover: #bb2d3b;
+  --bs-primary-active: #b02a37;
+  --bs-primary-focus-border: #f1aeb5;
+  --bs-primary-bg-subtle: #f8d7da;
+  --bs-primary-text-emphasis: #58151c;
+}
+html[data-bs-theme="dark"][data-ui-tone="red"] {
+  --bs-primary: #ea868f;
+  --bs-primary-rgb: 234, 134, 143;
+  --bs-primary-hover: #e35d6a;
+  --bs-primary-active: #da3746;
+  --bs-primary-focus-border: #ea868f;
+  --bs-primary-bg-subtle: #2c0b0e;
+  --bs-primary-text-emphasis: #ea868f;
+}
+
+/* --- 5. ORANGE TONE --- */
+html[data-ui-tone="orange"] {
+  --bs-primary: #fd7e14;
+  --bs-primary-rgb: 253, 126, 20;
+  --bs-primary-hover: #ca6510;
+  --bs-primary-active: #be5f0f;
+  --bs-primary-focus-border: #fecba1;
+  --bs-primary-bg-subtle: #fff3cd;
+  --bs-primary-text-emphasis: #663208;
+}
+html[data-bs-theme="dark"][data-ui-tone="orange"] {
+  --bs-primary: #feb272;
+  --bs-primary-rgb: 254, 178, 114;
+  --bs-primary-hover: #fe9e43;
+  --bs-primary-active: #fd8614;
+  --bs-primary-focus-border: #feb272;
+  --bs-primary-bg-subtle: #331904;
+  --bs-primary-text-emphasis: #feb272;
+}
+
+/* Dynamic Links Syncing */
+[data-ui-tone] {
+  --bs-link-color: var(--bs-primary);
+  --bs-link-hover-color: var(--bs-primary-hover);
+}
+
+
+/* ==========================================================================
+   DYNAMIC CORNER STYLES
+   ========================================================================== */
+
+/* Sharp theme (Zero Out Corners Everywhere) */
+[data-corners="sharp"] {
+  --bs-border-radius: 0px !important;
+  --bs-border-radius-sm: 0px !important;
+  --bs-border-radius-lg: 0px !important;
+  --bs-border-radius-xl: 0px !important;
+  --bs-border-radius-2xl: 0px !important;
+  --bs-border-radius-pill: 0px !important;
+}
+
+/* Normal standard layout configuration */
+[data-corners="normal"] {
+  --bs-border-radius: 0.375rem;
+  --bs-border-radius-sm: 0.25rem;
+  --bs-border-radius-lg: 0.5rem;
+  --bs-border-radius-xl: 1rem;
+  --bs-border-radius-2xl: 2rem;
+}
+
+/* Fluid modern rounded corners layout */
+[data-corners="modern"] {
+  --bs-border-radius: 0.85rem !important;
+  --bs-border-radius-sm: 0.5rem !important;
+  --bs-border-radius-lg: 1.4rem !important;
+  --bs-border-radius-xl: 2rem !important;
+  --bs-border-radius-2xl: 3rem !important;
+}
+
 /* Variables and Base Layout */
 :root { 
   --nav-height: 65px;

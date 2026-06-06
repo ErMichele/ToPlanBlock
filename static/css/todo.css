@@ -1,9 +1,12 @@
 /* Task Cards */
 .task-card-hybrid {
   transition: all 0.2s ease;
-  border-radius: 12px !important;
-  border-left: 4px solid var(--bs-primary) !important;
+  border-left: 4px solid var(--bs-primary) !important; /* Dynamically respects active tone configuration */
   background-color: var(--bs-body-bg);
+}
+
+.task-card-hybrid.completed-task-state {
+  border-left-color: var(--bs-success) !important; /* Explicit complete overrides dynamic tone blue/purple */
 }
 
 .task-card-hybrid:hover {
@@ -25,9 +28,8 @@
 }
 
 .tag-input-container:focus-within {
-  border-color: #86b7fe;
-  outline: 0;
-  box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+  border-color: var(--bs-primary-focus-border) !important;
+  box-shadow: 0 0 0 0.25rem rgba(var(--bs-primary-rgb), 0.23) !important;
 }
 
 .tag-badge {
@@ -194,4 +196,23 @@
 
 .modal-task-row-active {
   background-color: var(--bs-light-bg-subtle) !important;
+}
+
+/* Dynamically override the hybrid card's hardcoded border radius based on user rules */
+[data-corners="sharp"] .task-card-hybrid,
+[data-corners="sharp"] .tag-input-container {
+  border-radius: 0px !important;
+}
+
+[data-corners="modern"] .task-card-hybrid {
+  border-radius: 1.4rem !important;
+}
+[data-corners="modern"] .tag-input-container {
+  border-radius: 0.85rem !important;
+}
+
+/* Ensure the custom focus rule of the tag containers uses the active tone */
+[data-ui-tone] .tag-input-container:focus-within {
+  border-color: var(--bs-primary-focus-border) !important;
+  box-shadow: 0 0 0 0.25rem rgba(var(--bs-primary-rgb), 0.23) !important;
 }
