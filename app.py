@@ -198,16 +198,33 @@ def cleanup_unlocked_categories(user_id):
     db.session.commit()
 
 
-@cache.cached(timeout=3600)
 def github_api_request():
-    """Fetches the five most recent releases from the public GitHub API. Result is cached for 1 hour."""
+    """Fetches the five most recent releases from the public GitHub API. Prevents caching on failure."""
+    cached_releases = cache.get('github_releases')
+    if cached_releases is not None:
+        return cached_releases
+
     url = 'https://api.github.com/repos/ermichele/toplanblock/releases'
+    headers = {'User-Agent': 'ToPlanBlock-App'}
+    
+    github_token = os.getenv('GITHUB_TOKEN')
+    if github_token:
+        headers['Authorization'] = f'Bearer {github_token}'
+        
     try:
-        response = requests.get(url, headers={'User-Agent': 'ToPlanBlock-App'}, timeout=1.5)
+        response = requests.get(url, headers=headers, timeout=3.0)
+        
         if response.status_code == 200:
-            return response.json()[:5]
+            releases = response.json()[:5]
+            if releases:
+                cache.set('github_releases', releases, timeout=3600)
+            return releases
+        else:
+            app.logger.error(f"GitHub API returned status {response.status_code}: {response.text}")
+            
     except Exception as e:
         app.logger.error(f'GitHub API error: {e}')
+        
     return []
 
 
