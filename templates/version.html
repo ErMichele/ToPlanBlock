@@ -24,7 +24,7 @@
                 <i class="bi bi-calendar3 me-1"></i> {{ release.published_at.split('T')[0] }}
               </div>
             </div>
-            <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-3">
+            <span class="badge bg-primary-subtle text-primary border border-primary rounded px-3">
               {{ release.tag_name }}
             </span>
           </div>
@@ -34,7 +34,7 @@
           </div>
           
           <div class="mt-4 text-end">
-            <a href="{{ release.html_url }}" target="_blank" class="small text-decoration-none fw-bold">
+            <a href="{{ release.html_url }}" target="_blank" class="small text-decoration-none text-primary fw-bold">
               View details <i class="bi bi-arrow-right ms-1"></i>
             </a>
           </div>

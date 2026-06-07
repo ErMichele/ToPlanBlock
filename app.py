@@ -108,7 +108,7 @@ class Category(db.Model):
     
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
-    color = db.Column(db.String(7), default='#0d6efd', nullable=False)
+    color = db.Column(db.String(7), nullable=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
     created_at = db.Column(db.DateTime, default=datetime.now, nullable=False)
     is_locked = db.Column(db.Boolean, default=False, nullable=False)
@@ -299,7 +299,7 @@ def edit(todo_id):
         for clean_name in cat_list:
             cat = existing_cats.get(clean_name)
             if not cat:
-                cat = Category(name=clean_name, user_id=current_user.id, color='#0d6efd')
+                cat = Category(name=clean_name, user_id=current_user.id, color=None)
                 db.session.add(cat)
             new_categories.append(cat)
         t.categories = new_categories
@@ -368,7 +368,9 @@ def bulk_action():
 @login_required
 def add_category():
     name = request.form.get('name', '').strip().upper()
-    color = request.form.get('color', '#0d6efd').strip()
+    color = request.form.get('color')
+    if color != None:
+        color = request.form.get('color').strip()
     task_ids = request.form.getlist('task_ids')
 
     if not name:
@@ -410,7 +412,7 @@ def add_category():
 def edit_category(cat_id):
     cat = Category.query.filter_by(id=cat_id, user_id=current_user.id).first_or_404()
     name = request.form.get('name', '').strip().upper()
-    color = request.form.get('color', '#0d6efd').strip()
+    color = request.form.get('color').strip() or None
     task_ids = request.form.getlist('task_ids')
 
     if not name:
@@ -706,7 +708,7 @@ def todo():
             for clean_name in cat_list:
                 cat = existing_cats.get(clean_name)
                 if not cat:
-                    cat = Category(name=clean_name, user_id=current_user.id, color='#0d6efd')
+                    cat = Category(name=clean_name, user_id=current_user.id, color=None)
                     db.session.add(cat)
                 new_todo.categories.append(cat)
                 

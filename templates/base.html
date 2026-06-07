@@ -91,12 +91,12 @@
         <div class="vr mx-3 d-none d-sm-block"></div>
         <form action="{{ url_for('logout') }}" method="POST" class="d-inline">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <button type="submit" class="btn btn-sm btn-danger px-3 rounded-pill">Logout</button>
+          <button type="submit" class="btn btn-sm btn-danger px-3 rounded">Logout</button>
         </form>
         {% else %}
         <a href="{{ url_for('login') }}"
           class="btn btn-sm btn-link text-decoration-none text-body fw-medium me-2">Login</a>
-        <a href="{{ url_for('register') }}" class="btn btn-sm btn-primary px-3 rounded-pill">Register</a>
+        <a href="{{ url_for('register') }}" class="btn btn-sm btn-primary px-3 rounded">Register</a>
         {% endif %}
       </div>
     </div>
@@ -162,7 +162,7 @@
         <h6 class="mb-0 fw-bold">Privacy</h6>
       </div>
       <p class="small text-muted mb-3">We only use essential technical cookies.</p>
-      <button id="accept-cookies-btn" class="btn btn-sm btn-primary w-100 rounded-pill">Got it</button>
+      <button id="accept-cookies-btn" class="btn btn-sm btn-primary w-100 rounded">Got it</button>
     </div>
   </div>
 

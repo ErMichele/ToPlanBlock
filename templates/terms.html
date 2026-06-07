@@ -4,7 +4,7 @@
 <div class="container py-5">
     <div class="row justify-content-center">
         <div class="col-md-9 col-lg-8">
-            <div class="card border-0 shadow-lg rounded-4 overflow-hidden">
+            <div class="card border-0 shadow-lg rounded overflow-hidden">
                 <div class="card-body p-5">
                     <div class="text-center mb-5">
                         <h1 class="fw-bold display-5">Terms and Conditions</h1>
@@ -14,8 +14,8 @@
 
                     <section class="mb-5">
                         <div class="d-flex align-items-center mb-3">
-                            <div class="bg-primary bg-opacity-10 p-2 rounded-3 me-3">
-                                <i class="bi bi-info-circle-fill text-primary"></i>
+                            <div class="p-2 rounded me-3" style="background-color: color-mix(in srgb, var(--bs-primary) 10%, transparent);">
+                                <i class="bi bi-info-circle-fill" style="color: var(--bs-primary);"></i>
                             </div>
                             <h4 class="fw-bold mb-0">1. Nature of the Service</h4>
                         </div>
@@ -24,7 +24,7 @@
 
                     <section class="mb-5">
                         <div class="d-flex align-items-center mb-3">
-                            <div class="bg-warning bg-opacity-10 p-2 rounded-3 me-3">
+                            <div class="bg-warning bg-opacity-10 p-2 rounded me-3">
                                 <i class="bi bi-shield-lock-fill text-warning"></i>
                             </div>
                             <h4 class="fw-bold mb-0">2. User Responsibility</h4>
@@ -34,7 +34,7 @@
 
                     <section class="mb-5">
                         <div class="d-flex align-items-center mb-3">
-                            <div class="bg-danger bg-opacity-10 p-2 rounded-3 me-3">
+                            <div class="bg-danger bg-opacity-10 p-2 rounded me-3">
                                 <i class="bi bi-image-fill text-danger"></i>
                             </div>
                             <h4 class="fw-bold mb-0">3. Profile Content & Processing</h4>
@@ -50,7 +50,7 @@
 
                     <section class="mb-4">
                         <div class="d-flex align-items-center mb-3">
-                            <div class="bg-info bg-opacity-10 p-2 rounded-3 me-3">
+                            <div class="bg-info bg-opacity-10 p-2 rounded me-3">
                                 <i class="bi bi-pencil-square text-info"></i>
                             </div>
                             <h4 class="fw-bold mb-0">4. Changes to Terms</h4>
@@ -60,9 +60,9 @@
 
                     <div class="mt-5 pt-4 border-top text-center">
                         {% if current_user.is_authenticated %}
-                        <a href="{{ url_for('todo') }}" class="btn btn-outline-primary rounded-pill px-4">Back to the tasks</a>
+                        <a href="{{ url_for('todo') }}" class="btn btn-outline-primary rounded px-4">Back to the tasks</a>
                         {% else %}
-                        <a href="{{ url_for('register') }}" class="btn btn-outline-primary rounded-pill px-4">Back to Registration</a>
+                        <a href="{{ url_for('register') }}" class="btn btn-outline-primary rounded px-4">Back to Registration</a>
                         {% endif %}
                     </div>
                 </div>

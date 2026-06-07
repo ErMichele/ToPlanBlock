@@ -9,7 +9,7 @@
       <p class="text-muted mb-0">Manage your identity, security, and app preferences.</p>
     </div>
     <div class="d-none d-md-block text-end">
-      <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-3 py-2">
+      <span class="badge bg-primary-subtle text-primary border border-primary rounded px-3 py-2">
         Member since: {% if current_user.created_at %}{{ current_user.created_at.strftime('%b %Y') }}{% else %}March
         2026{% endif %}
       </span>
@@ -77,7 +77,7 @@
                 placeholder="Enter current password to authorize changes" required>
             </div>
 
-            <div class="p-3 bg-body-secondary rounded-3">
+            <div class="p-3 bg-body-secondary rounded">
               <label class="form-label fw-semibold mb-1">New Password</label>
               <input class="form-control" type="password" name="new_password" minlength="8" autocomplete="new-password"
                 placeholder="Leave blank to keep current">
@@ -205,13 +205,13 @@
 
 <div class="modal fade" id="unsavedChangesModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered modal-sm">
-    <div class="modal-content border-0 shadow-lg rounded-4">
+    <div class="modal-content border-0 shadow-lg rounded">
       <div class="modal-body p-4 text-center">
         <div class="text-warning mb-3"><i class="bi bi-exclamation-circle display-4"></i></div>
         <h5 class="fw-bold mb-2">Unsaved Changes</h5>
         <p class="small text-muted mb-4">You have unsaved changes. If you leave now, they will be lost.</p>
         <div class="d-flex flex-column gap-2">
-          <button type="button" class="btn btn-primary rounded-pill fw-bold py-2" data-bs-dismiss="modal">Stay and
+          <button type="button" class="btn btn-primary rounded fw-bold py-2" data-bs-dismiss="modal">Stay and
             Save</button>
           <button type="button" id="confirmLeaveBtn" class="btn btn-link text-danger text-decoration-none fw-bold">Leave
             Anyway</button>
@@ -223,7 +223,7 @@
 
 <div class="modal fade" id="deleteAccountModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content border-0 shadow-lg rounded-4">
+    <div class="modal-content border-0 shadow-lg rounded">
       <div class="modal-body p-4 text-center">
         <div class="text-danger mb-3"><i class="bi bi-person-x display-4"></i></div>
         <h5 class="fw-bold mb-2">Delete Account?</h5>
@@ -232,11 +232,11 @@
           forever.
         </p>
         <div class="d-flex gap-2">
-          <button type="button" class="btn btn-light rounded-pill flex-fill fw-bold"
+          <button type="button" class="btn btn-light rounded flex-fill fw-bold"
             data-bs-dismiss="modal">Cancel</button>
           <form method="POST" action="{{ url_for('delete_account') }}" class="flex-fill">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-            <button type="submit" class="btn btn-danger rounded-pill w-100 fw-bold">Delete Everything</button>
+            <button type="submit" class="btn btn-danger rounded w-100 fw-bold">Delete Everything</button>
           </form>
         </div>
       </div>
@@ -258,8 +258,8 @@
         </div>
       </div>
       <div class="modal-footer border-0">
-        <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Cancel</button>
-        <button type="button" id="saveCropBtn" class="btn btn-primary rounded-pill px-4">Crop & Use</button>
+        <button type="button" class="btn btn-light rounded px-4" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" id="saveCropBtn" class="btn btn-primary rounded px-4">Crop & Use</button>
       </div>
     </div>
   </div>

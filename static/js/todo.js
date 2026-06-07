@@ -2,7 +2,6 @@
  * TagInputManager - A reusable class for managing interactive tag inputs
  * Supports autocomplete, keyboard navigation, and hidden field synchronization.
  */
-
 class TagInputManager {
     constructor(wrapper) {
         this.wrapper = wrapper;
@@ -121,10 +120,10 @@ class TagInputManager {
 
         this.tags.forEach(tag => {
             const matchSuggestion = this.suggestions.querySelector(`.suggestion-item[data-value="${tag}"]`);
-            const customBadgeColor = matchSuggestion ? matchSuggestion.dataset.color : '#0d6efd';
+            const customBadgeColor = (matchSuggestion && matchSuggestion.dataset.color) ? matchSuggestion.dataset.color : 'var(--bs-primary)';
 
             const badge = document.createElement('div');
-            badge.className = 'tag-badge badge rounded-pill d-flex align-items-center gap-2 px-3 py-2';
+            badge.className = 'tag-badge badge rounded d-flex align-items-center gap-2 px-3 py-2';
             
             if (tag === this.lastAddedTag) {
                 badge.classList.add('tag-badge-animated');
@@ -176,6 +175,88 @@ class TagInputManager {
 }
 
 /**
+ * BulkSelectionManager - Reusable class to manage selection tracking across pagination
+ * Stores selected row IDs in a persistent JavaScript Set instance.
+ */
+class BulkSelectionManager {
+    constructor(options = {}) {
+        this.checkboxSelector = options.checkboxSelector || '.todo-checkbox';
+        this.selectAllSelector = options.selectAllSelector || '#selectAll';
+        this.bulkBtnSelector = options.bulkBtnSelector || '#bulkActionsBtn';
+        
+        this.selectedIds = new Set();
+        this.initEvents();
+    }
+
+    initEvents() {
+        // Use global event delegation to gracefully manage dynamically added AJAX elements
+        document.addEventListener('change', (e) => {
+            if (e.target.matches(this.checkboxSelector)) {
+                this.handleCheckboxChange(e.target);
+            } else if (e.target.matches(this.selectAllSelector)) {
+                this.handleSelectAllChange(e.target);
+            }
+        });
+    }
+
+    handleCheckboxChange(cb) {
+        if (cb.checked) {
+            this.selectedIds.add(cb.value);
+        } else {
+            this.selectedIds.delete(cb.value);
+        }
+        this.syncSelectAllState();
+        this.updateBulkButtonState();
+    }
+
+    handleSelectAllChange(selectAllCb) {
+        const checkboxes = document.querySelectorAll(this.checkboxSelector);
+        checkboxes.forEach(cb => {
+            cb.checked = selectAllCb.checked;
+            if (selectAllCb.checked) {
+                this.selectedIds.add(cb.value);
+            } else {
+                this.selectedIds.delete(cb.value);
+            }
+        });
+        this.updateBulkButtonState();
+    }
+
+    syncUI() {
+        const checkboxes = document.querySelectorAll(this.checkboxSelector);
+        checkboxes.forEach(cb => {
+            cb.checked = this.selectedIds.has(cb.value);
+        });
+        this.syncSelectAllState();
+        this.updateBulkButtonState();
+    }
+
+    syncSelectAllState() {
+        const selectAllCb = document.querySelector(this.selectAllSelector);
+        if (selectAllCb) {
+            const checkboxes = document.querySelectorAll(this.checkboxSelector);
+            selectAllCb.checked = checkboxes.length > 0 && [...checkboxes].every(cb => cb.checked);
+        }
+    }
+
+    updateBulkButtonState() {
+        const bulkBtn = document.querySelector(this.bulkBtnSelector);
+        if (bulkBtn) {
+            bulkBtn.disabled = this.selectedIds.size === 0;
+        }
+    }
+
+    clear() {
+        this.selectedIds.clear();
+        this.syncUI();
+    }
+
+    getIds() {
+        return Array.from(this.selectedIds);
+    }
+}
+
+/**
  * TodoAJAXManager - Handles AJAX interactions for the ToDo app
  * Intercepts form submissions and link clicks to perform AJAX requests,
  * updates the UI dynamically, and manages loading states and toasts.
@@ -186,8 +267,125 @@ class TodoAJAXManager {
     }
 
     init() {
+        this.bulkManager = new BulkSelectionManager({
+            checkboxSelector: '.todo-checkbox',
+            selectAllSelector: '#selectAll',
+            bulkBtnSelector: '#bulkActionsBtn'
+        });
+        
+        // Tracks chosen category filters across AJAX pagination renders
+        this.selectedCategories = new Set();
+        this.initCategories();
         this.bindGlobalEvents();
-        this.bindBulkLogic();
+    }
+
+    initCategories() {
+        const filterInput = document.getElementById('filter-category-input');
+        if (filterInput && filterInput.value.trim()) {
+            filterInput.value.split(',').forEach(cat => {
+                const trimmed = cat.trim();
+                if (trimmed) {
+                    this.selectedCategories.add(trimmed);
+                }
+            });
+        }
+    }
+
+    hasCategory(catName) {
+        return [...this.selectedCategories].some(c => c.toUpperCase() === catName.toUpperCase());
+    }
+
+    deleteCategory(catName) {
+        for (const c of this.selectedCategories) {
+            if (c.toUpperCase() === catName.toUpperCase()) {
+                this.selectedCategories.delete(c);
+            }
+        }
+    }
+
+    syncCategoryUI() {
+        const filterInput = document.getElementById('filter-category-input');
+        if (filterInput) {
+            filterInput.value = Array.from(this.selectedCategories).join(',');
+        }
+
+        document.querySelectorAll('.category-filter-item').forEach(item => {
+            const catName = item.getAttribute('data-cat-name');
+            const catColor = item.getAttribute('data-cat-color');
+            const checkIconSpan = item.querySelector('.category-check-icon');
+            const badgeSpan = item.querySelector('.badge');
+
+            if (this.hasCategory(catName)) {
+                if (checkIconSpan) {
+                    checkIconSpan.innerHTML = `<i class="bi bi-check-circle-fill" style="color: ${catColor}; font-size: 1.1rem;"></i>`;
+                }
+                if (badgeSpan) {
+                    badgeSpan.className = 'badge px-3 py-2 rounded text-white border';
+                    badgeSpan.style.backgroundColor = catColor;
+                    badgeSpan.style.borderColor = catColor; 
+                    badgeSpan.style.color = '#fff';
+                    badgeSpan.style.opacity = '1';
+                }
+            } else {
+                if (checkIconSpan) {
+                    checkIconSpan.innerHTML = '<i class="bi bi-circle text-muted" style="font-size: 1.1rem;"></i>';
+                }
+                if (badgeSpan) {
+                    badgeSpan.className = 'badge px-3 py-2 rounded text-body border';
+                    badgeSpan.style.backgroundColor = 'var(--bs-body-secondary)';
+                    badgeSpan.style.borderColor = 'var(--bs-border-color)';
+                    badgeSpan.style.color = 'var(--bs-body-color)';
+                    badgeSpan.style.opacity = '0.85';
+                }
+            }
+        });
+    }
+
+    /**
+     * Extracts and converts the global primary color from document styles into a valid HEX code format
+     */
+    getThemePrimaryColor() {
+        const root = document.documentElement;
+        const computedStyle = getComputedStyle(root);
+        
+        let color = computedStyle.getPropertyValue('--bs-primary').trim() || 
+                    computedStyle.getPropertyValue('--primary-color').trim();
+        
+        if (color.startsWith('rgb')) {
+            const rgbValues = color.match(/\d+/g);
+            if (rgbValues && rgbValues.length >= 3) {
+                const r = parseInt(rgbValues[0]).toString(16).padStart(2, '0');
+                const g = parseInt(rgbValues[1]).toString(16).padStart(2, '0');
+                const b = parseInt(rgbValues[2]).toString(16).padStart(2, '0');
+                color = `#${r}${g}${b}`;
+            }
+        }
+        
+        return color.startsWith('#') && color.length === 7 ? color : '#0d6efd';
+    }
+
+    /**
+     * Sets picker values to match the default system tone color contextually at modal display instantiation
+     */
+    initModalColorPickers(modalElement) {
+        const themeToggles = modalElement.querySelectorAll('.theme-color-toggle');
+        const defaultColor = this.getThemePrimaryColor();
+
+        themeToggles.forEach(toggle => {
+            const targetId = toggle.getAttribute('data-target');
+            const picker = modalElement.querySelector(`#${targetId}`);
+            
+            if (picker) {
+                if (toggle.checked) {
+                    picker.disabled = true;
+                    picker.style.opacity = '0.5';
+                    picker.value = defaultColor;
+                } else {
+                    picker.disabled = false;
+                    picker.style.opacity = '1';
+                }
+            }
+        });
     }
 
     bindGlobalEvents() {
@@ -214,6 +412,9 @@ class TodoAJAXManager {
                     searchInput.focus();
                 }
             }
+
+            // Contextually evaluate and fill standard theme colors inside category modulators
+            this.initModalColorPickers(modal);
         });
 
         document.addEventListener('input', (e) => {
@@ -241,6 +442,22 @@ class TodoAJAXManager {
                 const modal = e.target.closest('.modal');
                 if (modal) {
                     this.updateCategoryModalState(modal);
+                }
+            }
+
+            // Decoupled listener logic targeting toggle actions for custom/default category labels
+            if (e.target.matches('.theme-color-toggle')) {
+                const targetId = e.target.getAttribute('data-target');
+                const picker = document.getElementById(targetId);
+                if (picker) {
+                    if (e.target.checked) {
+                        picker.disabled = true;
+                        picker.style.opacity = '0.5';
+                        picker.value = this.getThemePrimaryColor();
+                    } else {
+                        picker.disabled = false;
+                        picker.style.opacity = '1';
+                    }
                 }
             }
         });
@@ -282,6 +499,11 @@ class TodoAJAXManager {
 
             e.preventDefault();
 
+            // Clear the selection set tracking state if the user clicks the "Clear Filters" trigger
+            if (link.textContent.includes('Clear') || link.querySelector('.bi-trash3')) {
+                this.selectedCategories.clear();
+            }
+
             let url = link.href;
             
             if (link.id === 'apply-filters-btn') {
@@ -314,7 +536,6 @@ class TodoAJAXManager {
         });
     }
 
-    // --- NEW: Dynamic updates to row backgrounds and chosen counts ---
     updateCategoryModalState(modalElement) {
         const totalChecked = modalElement.querySelectorAll('.modal-task-checkbox:checked').length;
         const counterBadge = modalElement.querySelector('.target-counter');
@@ -336,52 +557,23 @@ class TodoAJAXManager {
         const item = toggleZone.closest('.category-filter-item');
         if (!item) return;
 
-        const filterInput = document.getElementById('filter-category-input');
-        if (!filterInput) return;
-
         const catName = item.getAttribute('data-cat-name');
-        const catColor = item.getAttribute('data-cat-color');
+        if (!catName) return;
 
-        let currentVal = filterInput.value.trim();
-        let activeCats = currentVal ? currentVal.split(',') : [];
-
-        const index = activeCats.findIndex(c => c.toUpperCase() === catName.toUpperCase());
-        const checkIconSpan = item.querySelector('.category-check-icon');
         const badgeSpan = item.querySelector('.badge');
-
         if (badgeSpan) {
             badgeSpan.classList.remove('badge-pop');
             void badgeSpan.offsetWidth; 
             badgeSpan.classList.add('badge-pop');
         }
 
-        if (index > -1) {
-            activeCats.splice(index, 1);
-            if (checkIconSpan) {
-                checkIconSpan.innerHTML = '<i class="bi bi-circle text-muted" style="font-size: 1.1rem;"></i>';
-            }
-            if (badgeSpan) {
-                badgeSpan.className = 'badge px-3 py-2 rounded-pill text-body border';
-                badgeSpan.style.backgroundColor = 'var(--bs-body-secondary)';
-                badgeSpan.style.borderColor = 'var(--bs-border-color)';
-                badgeSpan.style.color = 'var(--bs-body-color)';
-                badgeSpan.style.opacity = '0.85';
-            }
+        if (this.hasCategory(catName)) {
+            this.deleteCategory(catName);
         } else {
-            activeCats.push(catName);
-            if (checkIconSpan) {
-                checkIconSpan.innerHTML = `<i class="bi bi-check-circle-fill" style="color: ${catColor}; font-size: 1.1rem;"></i>`;
-            }
-            if (badgeSpan) {
-                badgeSpan.className = 'badge px-3 py-2 rounded-pill text-white border';
-                badgeSpan.style.backgroundColor = catColor;
-                badgeSpan.style.borderColor = catColor; 
-                badgeSpan.style.color = '#fff';
-                badgeSpan.style.opacity = '1';
-            }
+            this.selectedCategories.add(catName);
         }
 
-        filterInput.value = activeCats.join(',');
+        this.syncCategoryUI();
     }
 
     async submitForm(form) {
@@ -391,11 +583,17 @@ class TodoAJAXManager {
             const formData = new FormData(form);
 
             if (form.id === 'bulk-form') {
-                document
-                    .querySelectorAll('.todo-checkbox:checked')
-                    .forEach(cb => {
-                        formData.append('todo_ids', cb.value);
+                if (this.bulkManager) {
+                    this.bulkManager.getIds().forEach(id => {
+                        formData.append('todo_ids', id);
                     });
+                } else {
+                    document
+                        .querySelectorAll('.todo-checkbox:checked')
+                        .forEach(cb => {
+                            formData.append('todo_ids', cb.value);
+                        });
+                }
 
                 if (
                     document.activeElement &&
@@ -427,6 +625,11 @@ class TodoAJAXManager {
                 }
 
                 this.closeOpenModal();
+                
+                if (form.id === 'bulk-form' && this.bulkManager) {
+                    this.bulkManager.clear();
+                }
+
                 await this.refreshCurrentPage();
 
                 window.showToast?.(
@@ -435,6 +638,11 @@ class TodoAJAXManager {
                 );
             } else {
                 const html = await response.text();
+                
+                if (form.id === 'bulk-form' && this.bulkManager) {
+                    this.bulkManager.clear();
+                }
+
                 this.replacePageContent(html);
             }
         } catch (err) {
@@ -499,6 +707,7 @@ class TodoAJAXManager {
         }
 
         this.reinitializeUI();
+        this.handleEmptyPage();
     }
 
     reinitializeUI() {
@@ -508,43 +717,45 @@ class TodoAJAXManager {
                 new TagInputManager(wrapper);
             });
 
-        this.bindBulkLogic();
-    }
-
-    bindBulkLogic() {
-        const selectAll = document.getElementById('selectAll');
-        const checkboxes = document.querySelectorAll('.todo-checkbox');
-        const bulkBtn = document.getElementById('bulkActionsBtn');
-
-        const updateState = () => {
-            const anyChecked = [...checkboxes].some(cb => cb.checked);
-
-            if (bulkBtn) {
-                bulkBtn.disabled = !anyChecked;
-            }
-
-            if (selectAll) {
-                selectAll.checked =
-                    checkboxes.length > 0 &&
-                    [...checkboxes].every(cb => cb.checked);
-            }
-        };
-
-        if (selectAll) {
-            selectAll.addEventListener('change', () => {
-                checkboxes.forEach(cb => {
-                    cb.checked = selectAll.checked;
-                });
-
-                updateState();
-            });
+        if (this.bulkManager) {
+            this.bulkManager.syncUI();
         }
 
-        checkboxes.forEach(cb => {
-            cb.addEventListener('change', updateState);
+        // Restores active selections to the sidebar items following an AJAX render
+        this.syncCategoryUI();
+    }
+
+    handleEmptyPage() {
+        const checkboxes = document.querySelectorAll('.todo-checkbox');
+        if (checkboxes.length > 0) return;
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const currentPage = parseInt(urlParams.get('page')) || 1;
+
+        if (currentPage <= 1) return;
+
+        let targetPage = currentPage - 1;
+        let maxPageFound = 1;
+
+        const pageLinks = document.querySelectorAll('a[href*="page="]');
+        pageLinks.forEach(link => {
+            try {
+                const href = link.getAttribute('href');
+                const url = new URL(href, window.location.origin);
+                const p = parseInt(url.searchParams.get('page'));
+                if (!isNaN(p) && p > maxPageFound) {
+                    maxPageFound = p;
+                }
+            } catch (e) {}
         });
 
-        updateState();
+        if (maxPageFound < currentPage) {
+            targetPage = maxPageFound;
+        }
+
+        urlParams.set('page', targetPage);
+        const newUrl = window.location.pathname + '?' + urlParams.toString();
+        this.loadPage(newUrl);
     }
 
     closeOpenModal() {

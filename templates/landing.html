@@ -4,14 +4,15 @@
 <div class="row justify-content-center py-5">
   <div class="col-lg-8 text-center">
     <h1 class="display-4 fw-black mb-3">Stay Organized, <span class="text-primary">Stay Focused.</span></h1>
-    <p class="lead text-muted mb-4">A minimalist task manager designed to help you organize your daily life across multiple categories without the clutter.</p>
-    
+    <p class="lead text-muted mb-4">A minimalist task manager designed to help you organize your daily life across
+      multiple categories without the clutter.</p>
+
     <div class="d-flex justify-content-center gap-3 mb-5">
       {% if not current_user.is_authenticated %}
-        <a href="{{ url_for('register') }}" class="btn btn-primary btn-lg px-4 rounded-pill shadow">Get Started Free</a>
-        <a href="{{ url_for('login') }}" class="btn btn-outline-secondary btn-lg px-4 rounded-pill">Sign In</a>
+      <a href="{{ url_for('register') }}" class="btn btn-primary btn-lg px-4 rounded shadow">Get Started Free</a>
+      <a href="{{ url_for('login') }}" class="btn btn-outline-secondary btn-lg px-4 rounded">Sign In</a>
       {% else %}
-        <a href="{{ url_for('todo') }}" class="btn btn-primary btn-lg px-5 rounded-pill shadow">Go to My Tasks</a>
+      <a href="{{ url_for('todo') }}" class="btn btn-primary btn-lg px-5 rounded shadow">Go to My Tasks</a>
       {% endif %}
     </div>
 
@@ -21,7 +22,8 @@
           <div class="card-body p-0">
             <i class="bi bi-collection text-primary fs-3 mb-2 d-block"></i>
             <h5 class="fw-bold">Smart Categories</h5>
-            <p class="small text-muted">Group your tasks by projects, life goals, or work to keep everything separated.</p>
+            <p class="small text-muted">Group your tasks by projects, life goals, or work to keep everything separated.
+            </p>
           </div>
         </div>
       </div>
@@ -39,7 +41,8 @@
           <div class="card-body p-0">
             <i class="bi bi-shield-check text-primary fs-3 mb-2 d-block"></i>
             <h5 class="fw-bold">Data Privacy</h5>
-            <p class="small text-muted">Your data is yours. Export your tasks to JSON or delete your account anytime.</p>
+            <p class="small text-muted">Your data is yours. Export your tasks to JSON or delete your account anytime.
+            </p>
           </div>
         </div>
       </div>

@@ -1,7 +1,8 @@
 /* Task Cards */
 .task-card-hybrid {
   transition: all 0.2s ease;
-  border-left: 4px solid var(--bs-primary) !important; /* Dynamically respects active tone configuration */
+  border-left: 4px solid var(--bs-primary) !important; 
+  border-radius: var(--bs-border-radius-lg); /* Scales with dynamic card/large corners mapping */
   background-color: var(--bs-body-bg);
 }
 
@@ -14,14 +15,13 @@
   box-shadow: 0 8px 15px rgba(0, 0, 0, 0.08) !important;
 }
 
-/* Tag Inputs & Badges */
 .tag-input-container {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   padding: 0.375rem 0.75rem;
   border: 1px solid var(--bs-border-color);
-  border-radius: 0.375rem;
+  border-radius: var(--bs-border-radius); /* Dynamic standard radius hook */
   background-color: var(--bs-body-bg);
   cursor: text;
   min-height: 38px;
@@ -36,7 +36,7 @@
   display: inline-flex;
   align-items: center;
   padding: 2px 8px;
-  border-radius: 4px;
+  border-radius: var(--bs-border-radius-sm); /* Scales with dynamic small corners mapping */
   margin: 2px;
   font-size: 0.85rem;
 }
@@ -196,23 +196,4 @@
 
 .modal-task-row-active {
   background-color: var(--bs-light-bg-subtle) !important;
-}
-
-/* Dynamically override the hybrid card's hardcoded border radius based on user rules */
-[data-corners="sharp"] .task-card-hybrid,
-[data-corners="sharp"] .tag-input-container {
-  border-radius: 0px !important;
-}
-
-[data-corners="modern"] .task-card-hybrid {
-  border-radius: 1.4rem !important;
-}
-[data-corners="modern"] .tag-input-container {
-  border-radius: 0.85rem !important;
-}
-
-/* Ensure the custom focus rule of the tag containers uses the active tone */
-[data-ui-tone] .tag-input-container:focus-within {
-  border-color: var(--bs-primary-focus-border) !important;
-  box-shadow: 0 0 0 0.25rem rgba(var(--bs-primary-rgb), 0.23) !important;
 }
