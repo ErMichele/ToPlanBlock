@@ -62,12 +62,15 @@
         
         let waitSeconds = 60; 
         const limitStr = "{{ limit_info }}".toLowerCase();
+        
         if (limitStr.includes('minute')) waitSeconds = 60;
         else if (limitStr.includes('hour')) waitSeconds = 3600;
         else if (limitStr.includes('second')) waitSeconds = 10;
+        
         const now = Date.now();
         let endTime = localStorage.getItem('429_expiry');
-        let totalDuration = localStorage.getItem('429_duration')
+        let totalDuration = localStorage.getItem('429_duration');
+        
         if (!endTime || parseInt(endTime) <= now) {
             endTime = now + (waitSeconds * 1000);
             totalDuration = waitSeconds * 1000;
@@ -82,6 +85,7 @@
             const currentTime = Date.now();
             const remainingTotal = Math.max(0, endTime - currentTime);
             const secondsLeft = Math.ceil(remainingTotal / 1000);
+            
             timerDisplay.textContent = secondsLeft;
             const percentage = (remainingTotal / totalDuration) * 100;
             progressBar.style.width = percentage + '%';

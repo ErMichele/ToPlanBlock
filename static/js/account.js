@@ -1,6 +1,7 @@
 /**
- * ProfileImageCropper - Manages image selection, canvas cropping updates,
- * and avatar placeholder fallback configurations.
+ * ProfileImageCropper
+ * Handles profile picture selection, interactive canvas cropping via Cropper.js,
+ * and fallback avatar placeholder state management.
  */
 class ProfileImageCropper {
     constructor(form, cropperModalEl, saveCropBtn, profileImg, fallbackAvatar) {
@@ -9,47 +10,37 @@ class ProfileImageCropper {
         this.saveCropBtn = saveCropBtn;
         this.profileImg = profileImg;
         this.fallbackAvatar = fallbackAvatar;
-        
+
         if (!this.form || !this.profileImg) return;
 
         this.fileInput = this.form.querySelector('input[name="picture"]');
         this.cropperImg = document.getElementById('cropper-image');
         this.bootstrapModal = new bootstrap.Modal(this.cropperModalEl);
 
-        // Layout baselines for resetting states
+        // Snapshot the initial avatar state so it can be restored on modal cancel
         this.originalSrc = this.profileImg.src;
         this.originalProfileImgHidden = this.profileImg.classList.contains('d-none');
-        this.originalFallbackAvatarHidden = this.fallbackAvatar ? this.fallbackAvatar.classList.contains('d-none') : false;
+        this.originalFallbackAvatarHidden = this.fallbackAvatar
+            ? this.fallbackAvatar.classList.contains('d-none')
+            : false;
 
         this.cropper = null;
         this.cropSaved = false;
         this.originalFileName = 'profile_pic.webp';
 
-        this.init();
-    }
-
-    init() {
         this.bindEvents();
     }
 
     restoreOriginalState() {
         if (!this.fileInput) return;
-        this.fileInput.value = "";
+        this.fileInput.value = '';
         this.profileImg.src = this.originalSrc;
         this.cropSaved = false;
 
-        if (this.originalProfileImgHidden) {
-            this.profileImg.classList.add('d-none');
-        } else {
-            this.profileImg.classList.remove('d-none');
-        }
+        this.profileImg.classList.toggle('d-none', this.originalProfileImgHidden);
 
         if (this.fallbackAvatar) {
-            if (this.originalFallbackAvatarHidden) {
-                this.fallbackAvatar.classList.add('d-none');
-            } else {
-                this.fallbackAvatar.classList.remove('d-none');
-            }
+            this.fallbackAvatar.classList.toggle('d-none', this.originalFallbackAvatarHidden);
         }
     }
 
@@ -61,38 +52,38 @@ class ProfileImageCropper {
     }
 
     bindEvents() {
-        // Image missing error bounds checking
+        // Fall back to the initial letter avatar if the image URL fails to load
         this.profileImg.addEventListener('error', () => this.handleImageError());
         if (this.profileImg.complete && this.profileImg.naturalWidth === 0) {
             this.handleImageError();
         }
 
-        // File Selection handling
         this.fileInput?.addEventListener('change', (e) => {
             const input = e.target;
-            if (input.files && input.files[0]) {
-                const originalName = input.files[0].name;
-                const lastDot = originalName.lastIndexOf('.');
-                this.originalFileName = (lastDot !== -1 ? originalName.substring(0, lastDot) : originalName) + '.webp';
-
-                const reader = new FileReader();
-                reader.onload = (event) => {
-                    this.cropperImg.src = event.target.result;
-                    this.bootstrapModal.show();
-                };
-                reader.readAsDataURL(input.files[0]);
-            } else {
+            if (!input.files?.length) {
                 this.restoreOriginalState();
                 this.bootstrapModal.hide();
+                return;
             }
+
+            const originalName = input.files[0].name;
+            const lastDot = originalName.lastIndexOf('.');
+            this.originalFileName =
+                (lastDot !== -1 ? originalName.substring(0, lastDot) : originalName) + '.webp';
+
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                this.cropperImg.src = event.target.result;
+                this.bootstrapModal.show();
+            };
+            reader.readAsDataURL(input.files[0]);
         });
 
-        // Cropper Initialization Hooks
         this.cropperModalEl.addEventListener('shown.bs.modal', () => {
             this.cropper = new Cropper(this.cropperImg, {
                 aspectRatio: 1,
                 viewMode: 1,
-                autoCropArea: 1
+                autoCropArea: 1,
             });
         });
 
@@ -101,36 +92,35 @@ class ProfileImageCropper {
                 this.cropper.destroy();
                 this.cropper = null;
             }
-            if (!this.cropSaved) {
-                this.restoreOriginalState();
-            }
-            this.cropSaved = false; 
+            // If the user dismissed without saving, revert to the previous state
+            if (!this.cropSaved) this.restoreOriginalState();
+            this.cropSaved = false;
         });
 
-        // Save layout crop data transformations
         this.saveCropBtn?.addEventListener('click', () => {
-            if (this.cropper) {
-                this.cropper.getCroppedCanvas({ width: 400, height: 400 }).toBlob((blob) => {
-                    const dataTransfer = new DataTransfer();
-                    const file = new File([blob], this.originalFileName, { type: "image/webp" });
-                    dataTransfer.items.add(file);
-                    this.fileInput.files = dataTransfer.files;
+            if (!this.cropper) return;
 
-                    const url = URL.createObjectURL(blob);
-                    this.profileImg.src = url;
-                    this.cropSaved = true;
+            this.cropper.getCroppedCanvas({ width: 400, height: 400 }).toBlob((blob) => {
+                const file = new File([blob], this.originalFileName, { type: 'image/webp' });
+                const dataTransfer = new DataTransfer();
+                dataTransfer.items.add(file);
+                this.fileInput.files = dataTransfer.files;
 
-                    this.fallbackAvatar?.classList.add('d-none');
-                    this.profileImg.classList.remove('d-none');
-                    this.bootstrapModal.hide();
-                }, 'image/webp', 0.85);
-            }
+                this.profileImg.src = URL.createObjectURL(blob);
+                this.cropSaved = true;
+
+                this.fallbackAvatar?.classList.add('d-none');
+                this.profileImg.classList.remove('d-none');
+                this.bootstrapModal.hide();
+            }, 'image/webp', 0.85);
         });
     }
 }
 
 /**
- * PreferencesManager - Watches customization layouts container to sync options via background AJAX payloads.
+ * PreferencesManager
+ * Listens for changes inside the preferences panel and persists them
+ * via a background AJAX POST, applying visual updates immediately.
  */
 class PreferencesManager {
     constructor(container) {
@@ -150,29 +140,26 @@ class PreferencesManager {
     async autoSave() {
         const formData = new FormData();
         const csrfInput = document.querySelector('input[name="csrf_token"]');
-        if (csrfInput) {
-            formData.append('csrf_token', csrfInput.value);
-        }
-        
-        const inputs = this.container.querySelectorAll('select, input');
-        inputs.forEach(input => {
+        if (csrfInput) formData.append('csrf_token', csrfInput.value);
+
+        this.container.querySelectorAll('select, input').forEach(input => {
             if (input.type === 'checkbox' || input.type === 'radio') {
-                if (input.checked) {
-                    formData.append(input.name, input.value || 'on');
-                }
+                if (input.checked) formData.append(input.name, input.value || 'on');
             } else {
                 formData.append(input.name, input.value);
             }
         });
 
+        // Apply theme, tone, and corner changes immediately before the server round-trip
         this.applyLivePreviewUpdates();
 
         try {
             const response = await fetch('/update_preferences', {
                 method: 'POST',
                 body: formData,
-                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                headers: { 'X-Requested-With': 'XMLHttpRequest' },
             });
+
             if (response.ok) {
                 window.showToast?.('Preferences auto-saved!', 'success');
             } else {
@@ -186,13 +173,13 @@ class PreferencesManager {
     applyLivePreviewUpdates() {
         const themeSelect = this.container.querySelector('select[name="theme"]');
         if (themeSelect) {
-            const selectedTheme = themeSelect.value;
-            document.documentElement.setAttribute('data-theme-pref', selectedTheme);
-            if (selectedTheme === 'system') {
+            const selected = themeSelect.value;
+            document.documentElement.setAttribute('data-theme-pref', selected);
+            if (selected === 'system') {
                 const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
                 document.documentElement.setAttribute('data-bs-theme', isDark ? 'dark' : 'light');
             } else {
-                document.documentElement.setAttribute('data-bs-theme', selectedTheme);
+                document.documentElement.setAttribute('data-bs-theme', selected);
             }
         }
 
@@ -209,7 +196,9 @@ class PreferencesManager {
 }
 
 /**
- * AccountManager - Main orchestrator handling state dirty flags, profile submissions, and tasks conversions links.
+ * AccountManager
+ * Top-level orchestrator for the account settings page.
+ * Manages unsaved-change guards, delegates to sub-components, and handles data exports.
  */
 class AccountManager {
     constructor() {
@@ -220,15 +209,14 @@ class AccountManager {
         this.targetUrl = '';
         this.skipCheck = false;
 
-        // Capture initial form snapshot baseline
         this.initialDataString = this.getFormStateString(this.infoForm);
 
         this.initSubComponents();
-        this.init();
+        this.bindNavigationValidation();
+        this.bindExportEvents();
     }
 
     initSubComponents() {
-        // Instantiate child managers mapping directly to matching markup DOM definitions
         new ProfileImageCropper(
             this.infoForm,
             document.getElementById('cropperModal'),
@@ -240,15 +228,10 @@ class AccountManager {
         new PreferencesManager(document.getElementById('prefsContainer'));
     }
 
-    init() {
-        this.bindNavigationValidation();
-        this.bindExportEvents();
-    }
-
     /**
-     * Serializes layout elements to capture mutations.
-     * BUG FIX: Omitting 'current_password' guarantees password manager background auto-fills 
-     * won't mismatch states causing phantom validation prompts.
+     * Serialises the profile form into a comparable string to detect mutations.
+     * 'current_password' is intentionally excluded: password-manager auto-fills
+     * would otherwise trigger phantom "unsaved changes" warnings on page load.
      */
     getFormStateString(form) {
         const formData = new FormData(form);
@@ -258,19 +241,17 @@ class AccountManager {
             if (key === 'current_password') continue;
 
             if (value instanceof File) {
-                if (value.name === "" && value.size === 0) {
-                    params.append(key, "empty");
-                } else {
-                    params.append(key, `${value.name}:${value.size}`);
-                }
+                params.append(key, value.name && value.size ? `${value.name}:${value.size}` : 'empty');
             } else {
                 params.append(key, value);
             }
         }
+
         return params.toString();
     }
 
     bindNavigationValidation() {
+        // Warn the browser natively when the user tries to close or reload the tab
         window.addEventListener('beforeunload', (e) => {
             if (this.skipCheck) return;
             if (this.getFormStateString(this.infoForm) !== this.initialDataString) {
@@ -279,10 +260,11 @@ class AccountManager {
             }
         });
 
+        // Intercept internal link clicks and show the custom modal instead
         document.querySelectorAll('a').forEach(link => {
             link.addEventListener('click', (e) => {
                 if (this.skipCheck) return;
-                
+
                 const href = link.getAttribute('href');
                 if (!href || href.startsWith('#') || href.startsWith('javascript:')) return;
 
@@ -300,6 +282,7 @@ class AccountManager {
             window.location.href = this.targetUrl;
         });
 
+        // Allow the form to submit without triggering the unsaved-changes guard
         this.infoForm.addEventListener('submit', () => {
             this.skipCheck = true;
             window.toggleLoading?.(true);
@@ -307,8 +290,7 @@ class AccountManager {
     }
 
     bindExportEvents() {
-        const exportButtons = document.querySelectorAll('a[href*="/export/tasks"]');
-        exportButtons.forEach(btn => {
+        document.querySelectorAll('a[href*="/export/tasks"]').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 e.preventDefault();
                 this.handleDataExport(btn);
@@ -316,6 +298,11 @@ class AccountManager {
         });
     }
 
+    /**
+     * Streams the export response to disk.
+     * Prefers the File System Access API (showSaveFilePicker) when available;
+     * falls back to a programmatic <a> click for older browsers.
+     */
     async handleDataExport(buttonElement) {
         const href = buttonElement.getAttribute('href');
         if (!href) return;
@@ -323,52 +310,42 @@ class AccountManager {
         const urlObj = new URL(href, window.location.origin);
         const format = urlObj.searchParams.get('format') || 'json';
         const isCsv = format === 'csv';
-        const filename = `tasks_export_${new Date().toISOString().slice(0,10)}.${format}`;
+        const filename = `tasks_export_${new Date().toISOString().slice(0, 10)}.${format}`;
 
         try {
             window.toggleLoading?.(true);
             const response = await fetch(href);
             window.toggleLoading?.(false);
 
-            if (!response.ok) throw new Error('Data transmission error during data export operations.');
+            if (!response.ok) throw new Error('Export request failed.');
 
             const blob = await response.blob();
 
             if ('showSaveFilePicker' in window) {
-                const pickerOptions = {
+                const handle = await window.showSaveFilePicker({
                     suggestedName: filename,
-                    types: isCsv ? [{
-                        description: 'CSV File',
-                        accept: { 'text/csv': ['.csv'] }
-                    }] : [{
-                        description: 'JSON File',
-                        accept: { 'application/json': ['.json'] }
-                    }]
-                };
-                const handle = await window.showSaveFilePicker(pickerOptions);
+                    types: isCsv
+                        ? [{ description: 'CSV File', accept: { 'text/csv': ['.csv'] } }]
+                        : [{ description: 'JSON File', accept: { 'application/json': ['.json'] } }],
+                });
                 const writable = await handle.createWritable();
                 await writable.write(blob);
                 await writable.close();
             } else {
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = filename;
+                const url = URL.createObjectURL(blob);
+                const a = Object.assign(document.createElement('a'), { href: url, download: filename });
                 document.body.appendChild(a);
                 a.click();
-                window.URL.revokeObjectURL(url);
+                URL.revokeObjectURL(url);
                 a.remove();
             }
         } catch (err) {
             window.toggleLoading?.(false);
-            if (err.name !== 'AbortError') {
-                console.error("Export error encountered:", err);
-            }
+            if (err.name !== 'AbortError') console.error('Export error:', err);
         }
     }
 }
 
-// Initializing orchestration execution blocks cleanly on DOM complete load hooks
 document.addEventListener('DOMContentLoaded', () => {
     new AccountManager();
 });
