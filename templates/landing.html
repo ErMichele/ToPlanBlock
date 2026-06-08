@@ -5,13 +5,13 @@
   <div class="col-lg-8 text-center">
     <h1 class="display-4 fw-black mb-3">Stay Organized, <span class="text-primary">Stay Focused.</span></h1>
     <p class="lead text-muted mb-4">A minimalist task manager designed to help you organize your daily life across multiple categories without the clutter.</p>
-    
+
     <div class="d-flex justify-content-center gap-3 mb-5">
       {% if not current_user.is_authenticated %}
-        <a href="{{ url_for('register') }}" class="btn btn-primary btn-lg px-4 rounded-pill shadow">Get Started Free</a>
-        <a href="{{ url_for('login') }}" class="btn btn-outline-secondary btn-lg px-4 rounded-pill">Sign In</a>
+        <a href="{{ url_for('register') }}" class="btn btn-primary btn-lg px-4 rounded shadow">Get Started Free</a>
+        <a href="{{ url_for('login') }}" class="btn btn-outline-secondary btn-lg px-4 rounded">Sign In</a>
       {% else %}
-        <a href="{{ url_for('todo') }}" class="btn btn-primary btn-lg px-5 rounded-pill shadow">Go to My Tasks</a>
+        <a href="{{ url_for('todo') }}" class="btn btn-primary btn-lg px-5 rounded shadow">Go to My Tasks</a>
       {% endif %}
     </div>
 

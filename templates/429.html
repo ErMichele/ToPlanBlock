@@ -5,21 +5,21 @@
 <div class="container py-5">
     <div class="row justify-content-center">
         <div class="col-md-6 col-lg-5">
-            <div class="card border-0 shadow-lg rounded-4 overflow-hidden">
+            <div class="card border-0 shadow-lg rounded overflow-hidden">
                 <div class="card-header bg-warning py-3 border-0"></div>
                 <div class="card-body p-5 text-center">
                     <div class="mb-4">
                         <div class="display-1 fw-bold text-warning mb-2">429</div>
                         <h2 class="fw-bold">Take a Breather!</h2>
-                        <span class="badge rounded-pill bg-warning-subtle text-warning border border-warning-subtle px-3 py-2 mt-2">
+                        <span class="badge rounded bg-warning-subtle text-warning border border-warning-subtle px-3 py-2 mt-2">
                             <i class="bi bi-speedometer2 me-1"></i> Rate Limit Exceeded
                         </span>
                     </div>
 
                     <div class="text-start mb-4">
-                        <div class="p-3 bg-body-secondary rounded-3 border">
+                        <div class="p-3 bg-body-secondary rounded border">
                             <p class="small text-muted mb-2 text-uppercase fw-bold">Active Constraint</p>
-                            <p class="mb-0 fw-semibold text-">{{ limit_info or "Standard security limit" }}</p>
+                            <p class="mb-0 fw-semibold text-body-heading">{{ limit_info or "Standard security limit" }}</p>
                         </div>
                     </div>
 
@@ -38,9 +38,15 @@
                         <button id="refresh-btn" class="btn btn-primary py-3 fw-bold shadow-sm" disabled>
                             <i class="bi bi-arrow-clockwise me-2"></i>Refresh Page
                         </button>
+                        {% if current_user.is_authenticated %}
                         <a href="{{ url_for('todo') }}" class="btn btn-link text-decoration-none text-muted small">
                             Return to Tasks
                         </a>
+                        {% else %}
+                        <a href="{{ url_for('landing') }}" class="btn btn-link text-decoration-none text-muted small">
+                            Back to Home
+                        </a>
+                        {% endif %}
                     </div>
                 </div>
             </div>
@@ -53,20 +59,35 @@
         const timerDisplay = document.getElementById('countdown-timer');
         const progressBar = document.getElementById('countdown-progress');
         const refreshBtn = document.getElementById('refresh-btn');    
+        
         let waitSeconds = 60; 
         const limitStr = "{{ limit_info }}".toLowerCase();
+        
         if (limitStr.includes('minute')) waitSeconds = 60;
         else if (limitStr.includes('hour')) waitSeconds = 3600;
         else if (limitStr.includes('second')) waitSeconds = 10;
-        const startTime = Date.now();
-        const endTime = startTime + (waitSeconds * 1000);
+        
+        const now = Date.now();
+        let endTime = localStorage.getItem('429_expiry');
+        let totalDuration = localStorage.getItem('429_duration');
+        
+        if (!endTime || parseInt(endTime) <= now) {
+            endTime = now + (waitSeconds * 1000);
+            totalDuration = waitSeconds * 1000;
+            localStorage.setItem('429_expiry', endTime);
+            localStorage.setItem('429_duration', totalDuration);
+        } else {
+            endTime = parseInt(endTime);
+            totalDuration = parseInt(totalDuration);
+        }
 
         function updateTimer() {
-            const now = Date.now();
-            const remainingTotal = Math.max(0, endTime - now);
+            const currentTime = Date.now();
+            const remainingTotal = Math.max(0, endTime - currentTime);
             const secondsLeft = Math.ceil(remainingTotal / 1000);
+            
             timerDisplay.textContent = secondsLeft;
-            const percentage = (remainingTotal / (waitSeconds * 1000)) * 100;
+            const percentage = (remainingTotal / totalDuration) * 100;
             progressBar.style.width = percentage + '%';
 
             if (remainingTotal <= 0) {
@@ -75,13 +96,17 @@
                 progressBar.classList.remove('progress-bar-animated');
                 refreshBtn.disabled = false;
                 refreshBtn.innerHTML = '<i class="bi bi-check-circle-fill me-2"></i>Ready to Retry';
+                localStorage.removeItem('429_expiry');
+                localStorage.removeItem('429_duration');
                 return;
             }
             requestAnimationFrame(updateTimer);
         }
+
         refreshBtn.addEventListener('click', () => {
             location.reload();
         });
+
         updateTimer();
     });
 </script>

@@ -1,0 +1,191 @@
+/* ==========================================================================
+   TASK CARDS
+   ========================================================================== */
+.task-card-hybrid {
+  transition: all 0.2s ease;
+  border-left: 4px solid var(--bs-primary) !important; 
+  border-radius: var(--bs-border-radius-lg);
+  background-color: var(--bs-body-bg);
+}
+
+.task-card-hybrid.completed-task-state {
+  border-left-color: var(--bs-success) !important;
+}
+
+.task-card-hybrid:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 15px rgba(0, 0, 0, 0.08) !important;
+}
+
+/* ==========================================================================
+   TAG INPUTS & BADGES
+   ========================================================================== */
+.tag-input-container {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  padding: 0.375rem 0.75rem;
+  border: 1px solid var(--bs-border-color);
+  border-radius: var(--bs-border-radius);
+  background-color: var(--bs-body-bg);
+  cursor: text;
+  min-height: 38px;
+}
+
+.tag-input-container:focus-within {
+  border-color: var(--bs-primary-focus-border) !important;
+  box-shadow: 0 0 0 0.25rem rgba(var(--bs-primary-rgb), 0.23) !important;
+}
+
+.tag-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: var(--bs-border-radius-sm);
+  margin: 2px;
+  font-size: 0.85rem;
+}
+
+.tag-input-field {
+  border: none;
+  outline: none;
+  flex: 1;
+  min-width: 120px;
+  padding: 4px 0;
+  font-size: 0.9rem;
+  background-color: transparent;
+  color: var(--bs-body-color);
+}
+
+@keyframes tagPopIn {
+  0% { transform: scale(0.7); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.tag-badge-animated {
+  animation: tagPopIn 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+/* ==========================================================================
+   SUGGESTIONS & LAYOUT
+   ========================================================================== */
+.suggestions-list {
+  position: absolute;
+  z-index: 1050;
+  width: 100%;
+  max-height: 150px;
+  overflow-y: auto;
+  background: var(--bs-body-bg);
+  border: 1px solid var(--bs-border-color);
+  border-top: none;
+  display: none;
+}
+
+.suggestion-item {
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.suggestion-item:hover {
+  background-color: var(--bs-tertiary-bg);
+}
+
+.todo-checkbox {
+  width: 1.25rem;
+  height: 1.25rem;
+  cursor: pointer;
+}
+
+.task-title {
+  font-size: 0.97rem;
+  font-weight: 600;
+  color: var(--bs-body-color);
+  line-height: 1.3;
+  margin-top: 4px;
+}
+
+.task-title p,
+.note-text-container p {
+  margin-bottom: 0 !important;
+}
+
+.category-badge {
+  font-size: 0.65rem;
+  padding: 0.35em 0.7em;
+}
+
+.note-toggle {
+  font-size: 0.75rem;
+  color: var(--bs-secondary-color);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.note-content-area {
+  font-size: 0.85rem;
+  color: var(--bs-secondary-color);
+  border-top: 1px solid var(--bs-border-color);
+  margin-top: 8px;
+  padding-top: 8px;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.note-content-area i {
+  font-size: 1.1rem;
+  line-height: 1;
+  margin-top: 0.1rem;
+}
+
+.note-content-area > div {
+  flex: 1;
+  min-width: 0;
+}
+
+.btn-icon {
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+/* ==========================================================================
+   INTERACTIVE ELEMENTS & MODALS
+   ========================================================================== */
+.category-filter-item .badge {
+  transition: background-color 0.25s ease, border-color 0.25s ease, color 0.25s ease, opacity 0.25s ease;
+}
+
+.badge-pop {
+  animation: badgePopEffect 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes badgePopEffect {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.12); }
+  100% { transform: scale(1); }
+}
+
+.cursor-pointer {
+  cursor: pointer !important;
+}
+
+.modal-task-row {
+  transition: background-color 0.15s ease-in-out;
+}
+
+.modal-task-row:last-child {
+  border-bottom: 0 !important;
+}
+
+.modal-task-row-active {
+  background-color: var(--bs-light-bg-subtle) !important;
+}

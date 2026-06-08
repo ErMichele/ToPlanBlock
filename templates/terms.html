@@ -2,70 +2,72 @@
 {% block title %}Terms of Service - ToPlanBlock{% endblock %}
 {% block content %}
 <div class="container py-5">
-    <div class="row justify-content-center">
-        <div class="col-md-9 col-lg-8">
-            <div class="card border-0 shadow-lg rounded-4 overflow-hidden">
-                <div class="card-body p-5">
-                    <div class="text-center mb-5">
-                        <h1 class="fw-bold display-5">Terms and Conditions</h1>
-                        <p class="text-muted">Please read these terms carefully before using ToPlanBlock.</p>
-                        <hr class="w-25 mx-auto opacity-75">
-                    </div>
+  <div class="row justify-content-center">
+    <div class="col-md-9 col-lg-8">
+      <div class="card border-0 shadow-lg rounded overflow-hidden">
+        <div class="card-body p-5">
+          <div class="text-center mb-5">
+            <h1 class="fw-bold display-5">Terms and Conditions</h1>
+            <p class="text-muted">Please read these terms carefully before using ToPlanBlock.</p>
+            <hr class="w-25 mx-auto opacity-75">
+          </div>
 
-                    <section class="mb-5">
-                        <div class="d-flex align-items-center mb-3">
-                            <div class="bg-primary bg-opacity-10 p-2 rounded-3 me-3">
-                                <i class="bi bi-info-circle-fill text-primary"></i>
-                            </div>
-                            <h4 class="fw-bold mb-0">1. Nature of the Service</h4>
-                        </div>
-                        <p class="text-secondary">ToPlanBlock is an educational and demonstrative project. It is provided on an <strong>"AS IS"</strong> and <strong>"AS AVAILABLE"</strong> basis. We do not guarantee 100% uptime or the permanent preservation of data.</p>
-                    </section>
-
-                    <section class="mb-5">
-                        <div class="d-flex align-items-center mb-3">
-                            <div class="bg-warning bg-opacity-10 p-2 rounded-3 me-3">
-                                <i class="bi bi-shield-lock-fill text-warning"></i>
-                            </div>
-                            <h4 class="fw-bold mb-0">2. User Responsibility</h4>
-                        </div>
-                        <p class="text-secondary">You are responsible for maintaining the confidentiality of your account credentials. The author assumes no liability for data loss resulting from maintenance, server failure, or service closure.</p>
-                    </section>
-
-                    <section class="mb-5">
-                        <div class="d-flex align-items-center mb-3">
-                            <div class="bg-danger bg-opacity-10 p-2 rounded-3 me-3">
-                                <i class="bi bi-image-fill text-danger"></i>
-                            </div>
-                            <h4 class="fw-bold mb-0">3. Profile Content & Processing</h4>
-                        </div>
-                        <p class="text-secondary">Users are prohibited from uploading images that are offensive, illegal, or violate third-party copyrights. By uploading a profile picture, you agree to:</p>
-                        <ul class="text-secondary">
-                            <li class="mb-2"><strong>Automated Processing:</strong> Images may be automatically resized (400x400) or reformatted for optimization.</li>
-                            <li><strong>Moderation:</strong> We reserve the right to remove any image or account that violates these standards without notice.</li>
-                        </ul>
-                    </section>
-
-                    <section class="mb-4">
-                        <div class="d-flex align-items-center mb-3">
-                            <div class="bg-info bg-opacity-10 p-2 rounded-3 me-3">
-                                <i class="bi bi-pencil-square text-info"></i>
-                            </div>
-                            <h4 class="fw-bold mb-0">4. Changes to Terms</h4>
-                        </div>
-                        <p class="text-secondary">We reserve the right to modify these terms at any time. Continued use of the application following changes constitutes acceptance of the new terms.</p>
-                    </section>
-
-                    <div class="mt-5 pt-4 border-top text-center">
-                        {% if current_user.is_authenticated %}
-                        <a href="{{ url_for('todo') }}" class="btn btn-outline-primary rounded-pill px-4">Back to the tasks</a>
-                        {% else %}
-                        <a href="{{ url_for('register') }}" class="btn btn-outline-primary rounded-pill px-4">Back to Registration</a>
-                        {% endif %}
-                    </div>
-                </div>
+          <section class="mb-5">
+            <div class="d-flex align-items-center mb-3">
+              <div class="p-2 rounded me-3" style="background-color: color-mix(in srgb, var(--bs-primary) 10%, transparent);">
+                <i class="bi bi-info-circle-fill" style="color: var(--bs-primary);"></i>
+              </div>
+              <h4 class="fw-bold mb-0">1. Nature of the Service</h4>
             </div>
+            <p class="text-secondary">ToPlanBlock is an educational and demonstrative project. It is provided on an <strong>"AS IS"</strong> and <strong>"AS AVAILABLE"</strong> basis. We do not guarantee 100% uptime or the permanent preservation of data.</p>
+          </section>
+
+          <section class="mb-5">
+            <div class="d-flex align-items-center mb-3">
+              <div class="bg-warning bg-opacity-10 p-2 rounded me-3">
+                <i class="bi bi-shield-lock-fill text-warning"></i>
+              </div>
+              <h4 class="fw-bold mb-0">2. User Responsibility</h4>
+            </div>
+            <p class="text-secondary">You are responsible for maintaining the confidentiality of your account credentials. The author assumes no liability for data loss resulting from maintenance, server failure, or service closure.</p>
+          </section>
+
+          <section class="mb-5">
+            <div class="d-flex align-items-center mb-3">
+              <div class="bg-danger bg-opacity-10 p-2 rounded me-3">
+                <i class="bi bi-image-fill text-danger"></i>
+              </div>
+              <h4 class="fw-bold mb-0">3. Profile Content & Processing</h4>
+            </div>
+            <p class="text-secondary">To maintain a safe and functional environment, the following rules apply to profile image uploads:</p>
+            <ul class="text-secondary">
+              <li class="mb-2"><strong>Right to Use:</strong> You certify that you hold the necessary permissions or ownership for any media uploaded to our servers.</li>
+              <li class="mb-2"><strong>Community Standards:</strong> Uploads must be free of offensive, illegal, or inappropriate content.</li>
+              <li class="mb-2"><strong>Technical Handling:</strong> To ensure performance, images are optimized, cropped, and hosted using third-party services (Cloudinary).</li>
+              <li class="mb-2"><strong>Content Control:</strong> We maintain full discretion to remove media or terminate accounts that violate these quality and safety standards.</li>
+            </ul>
+          </section>
+
+          <section class="mb-4">
+            <div class="d-flex align-items-center mb-3">
+              <div class="bg-info bg-opacity-10 p-2 rounded me-3">
+                <i class="bi bi-pencil-square text-info"></i>
+              </div>
+              <h4 class="fw-bold mb-0">4. Changes to Terms</h4>
+            </div>
+            <p class="text-secondary">We reserve the right to modify these terms at any time. Continued use of the application following changes constitutes acceptance of the new terms.</p>
+          </section>
+
+          <div class="mt-5 pt-4 border-top text-center">
+            {% if current_user.is_authenticated %}
+              <a href="{{ url_for('todo') }}" class="btn btn-outline-primary rounded px-4">Back to the tasks</a>
+            {% else %}
+              <a href="{{ url_for('register') }}" class="btn btn-outline-primary rounded px-4">Back to Registration</a>
+            {% endif %}
+          </div>
         </div>
+      </div>
     </div>
+  </div>
 </div>
 {% endblock %}
