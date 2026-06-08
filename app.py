@@ -209,10 +209,12 @@ def github_api_request():
     
     github_token = os.getenv('GITHUB_TOKEN')
     if github_token:
-        headers['Authorization'] = f'Bearer {github_token}'
+        github_token = github_token.strip(' "\'')
+        prefix = 'token' if github_token.startswith('ghp_') else 'Bearer'
+        headers['Authorization'] = f'{prefix} {github_token}'
         
     try:
-        response = requests.get(url, headers=headers, timeout=3.0)
+        response = requests.get(url, headers=headers, timeout=10.0)
         
         if response.status_code == 200:
             releases = response.json()[:5]
@@ -226,7 +228,6 @@ def github_api_request():
         app.logger.error(f'GitHub API error: {e}')
         
     return []
-
 
 # ── Security middleware ────────────────────────────────────────────────────────
 @app.before_request
