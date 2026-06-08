@@ -105,7 +105,8 @@ class TagInputManager {
 
         this.tags.forEach(tag => {
             const matchSuggestion = this.suggestions.querySelector(`.suggestion-item[data-value="${tag}"]`);
-            const color = matchSuggestion?.dataset.color || 'var(--bs-primary)';
+            let color = matchSuggestion?.dataset.color || 'var(--bs-primary)';
+            if (color === 'None' || color === 'null') color = 'var(--bs-primary)';
 
             const badge = document.createElement('div');
             badge.className = 'tag-badge badge rounded d-flex align-items-center gap-2 px-3 py-2';
@@ -449,13 +450,13 @@ class TodoAJAXManager {
             this.loadPage(url);
         });
 
-        // Populate the delete-confirmation modal's form action from the triggering button's data-url
         document.addEventListener('show.bs.modal', (event) => {
             const button = event.relatedTarget;
             if (!button) return;
 
             const url = button.dataset.url;
-            const form = event.target.querySelector('form');
+            const modal = event.target;
+            const form = modal.querySelector('form');
 
             if (url && form) form.action = url;
         });
@@ -504,26 +505,47 @@ class TodoAJAXManager {
             const formData = new FormData(form);
 
             if (form.id === 'bulk-form') {
-                // Append selected IDs from the persistent Set (survives AJAX pagination)
                 const ids = this.bulkManager
                     ? this.bulkManager.getIds()
                     : [...document.querySelectorAll('.todo-checkbox:checked')].map(cb => cb.value);
 
                 ids.forEach(id => formData.append('todo_ids', id));
 
-                // Capture which bulk action button triggered the submit
                 if (document.activeElement?.name === 'action') {
                     formData.append('action', document.activeElement.value);
                 }
             }
 
-            const url = form.getAttribute('action') || window.location.href;
-            const response = await fetch(url, {
-                method: form.method || 'POST',
-                body: formData,
+            let url = form.getAttribute('action') || window.location.href;
+            const method = (form.method || 'POST').toUpperCase();
+            
+            const fetchOptions = {
+                method: method,
                 headers: { 'X-Requested-With': 'XMLHttpRequest' },
-            });
+            };
 
+            if (method === 'GET' || method === 'HEAD') {
+                const urlObj = new URL(url, window.location.origin);
+                const params = new URLSearchParams(formData);
+                
+                for (const [key, value] of params.entries()) {
+                    if (value.trim()) {
+                        urlObj.searchParams.set(key, value);
+                    } else {
+                        urlObj.searchParams.delete(key);
+                    }
+                }
+                
+                if (params.has('search')) {
+                    urlObj.searchParams.set('page', '1');
+                }
+
+                url = urlObj.pathname + urlObj.search;
+            } else {
+                fetchOptions.body = formData;
+            }
+
+            const response = await fetch(url, fetchOptions);
             const contentType = response.headers.get('content-type');
 
             if (contentType?.includes('application/json')) {
@@ -539,6 +561,10 @@ class TodoAJAXManager {
                 const html = await response.text();
                 if (form.id === 'bulk-form') this.bulkManager?.clear();
                 this.replacePageContent(html);
+
+                if (method === 'GET' || method === 'HEAD') {
+                    window.history.pushState({}, '', url);
+                }
             }
         } catch (err) {
             console.error(err);
