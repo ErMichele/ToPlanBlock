@@ -22,7 +22,12 @@
             <div class="d-flex justify-content-between">
               <label class="form-label fw-semibold">Password</label>
             </div>
-            <input class="form-control p-3" type="password" name="password" placeholder="••••••••" required>
+            <div class="input-group">
+              <input class="form-control p-3 password-toggle-input" type="password" name="password" placeholder="••••••••" required>
+              <button class="btn btn-outline-secondary px-3 password-toggle-btn" type="button">
+                <i class="bi bi-eye"></i>
+              </button>
+            </div>
           </div>
           
           <button class="btn btn-primary w-100 py-3 fw-bold shadow-sm">Sign In</button>
@@ -35,4 +40,8 @@
     </div>
   </div>
 </div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/access.js') }}"></script>
 {% endblock %}

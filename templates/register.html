@@ -25,7 +25,12 @@
 
           <div class="mb-4">
             <label class="form-label fw-semibold">Password</label>
-            <input class="form-control p-3" type="password" name="password" minlength="8" autocomplete="new-password" placeholder="Choose a strong password" required>
+            <div class="input-group">
+              <input class="form-control p-3 password-toggle-input" type="password" name="password" minlength="8" autocomplete="new-password" placeholder="Choose a strong password" required>
+              <button class="btn btn-outline-secondary px-3 password-toggle-btn" type="button">
+                <i class="bi bi-eye"></i>
+              </button>
+            </div>
             <div class="form-text text-muted small mt-2">
               Must be at least 8 characters long.
             </div>
@@ -49,4 +54,8 @@
     </div>
   </div>
 </div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/access.js') }}"></script>
 {% endblock %}
