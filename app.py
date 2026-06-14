@@ -8,6 +8,7 @@ import cloudinary.uploader
 import markdown
 import bleach
 import requests
+from itsdangerous import URLSafeTimedSerializer
 from datetime import datetime, timedelta
 from urllib.parse import urlparse
 from markupsafe import Markup
@@ -31,6 +32,7 @@ from flask_caching import Cache
 from flask_compress import Compress
 from sqlalchemy.orm import selectinload
 from sqlalchemy.exc import IntegrityError
+from werkzeug.exceptions import HTTPException
 
 load_dotenv()
 
@@ -228,6 +230,57 @@ def github_api_request():
         app.logger.error(f'GitHub API error: {e}')
         
     return []
+
+
+def generate_secure_token(email, salt):
+    """Generates a signed, cryptographic token bound to an email."""
+    serializer = URLSafeTimedSerializer(app.config['SECRET_KEY'])
+    return serializer.dumps(email, salt=salt)
+
+
+def verify_secure_token(token, salt, expiration=3600):
+    """Validates the token and checks if it has expired."""
+    serializer = URLSafeTimedSerializer(app.config['SECRET_KEY'])
+    try:
+        email = serializer.loads(token, salt=salt, max_age=expiration)
+        return email
+    except Exception:
+        return None
+
+
+def send_brevo_email(to_email, subject, text_content, html_content=None):
+    """Sends an email using Brevo's HTTP API, avoiding Render SMTP blockages."""
+    api_key = os.getenv('BREVO_API_KEY')
+    if not api_key:
+        app.logger.error("Brevo API key is missing.")
+        return False
+
+    url = "https://api.brevo.com/v3/smtp/email"
+    headers = {
+        "accept": "application/json",
+        "api-key": api_key,
+        "content-type": "application/json"
+    }
+    
+    payload = {
+        "sender": {"name": "ToPlanBlock", "email": "your-verified-brevo-email@domain.com"},
+        "to": [{"email": to_email}],
+        "subject": subject,
+        "textContent": text_content
+    }
+    
+    if html_content:
+        payload["htmlContent"] = html_content
+
+    try:
+        response = requests.post(url, json=payload, headers=headers, timeout=10.0)
+        if response.status_code in [200, 201]:
+            return True
+        app.logger.error(f"Brevo API error {response.status_code}: {response.text}")
+    except Exception as e:
+        app.logger.error(f"Failed to send email via Brevo: {e}")
+        
+    return False
 
 # ── Security middleware ────────────────────────────────────────────────────────
 @app.before_request

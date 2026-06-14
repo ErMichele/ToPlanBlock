@@ -1,14 +1,12 @@
+# Environment
 .venv/
-.env/
 .env
 
+# System files
 __pycache__/
 *.py[cod]
-
-instance/
-*.db
 *.sqlite3
-static/uploads/*
+
 # Logs
 *.log
 *.txt
