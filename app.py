@@ -2,6 +2,7 @@ import io
 import os
 import csv
 import json
+import base64
 import secrets
 import cloudinary
 import cloudinary.uploader
@@ -248,39 +249,230 @@ def verify_secure_token(token, salt, expiration=3600):
         return None
 
 
-def send_brevo_email(to_email, subject, text_content, html_content=None):
-    """Sends an email using Brevo's HTTP API, avoiding Render SMTP blockages."""
-    api_key = os.getenv('BREVO_API_KEY')
-    if not api_key:
-        app.logger.error("Brevo API key is missing.")
+
+def send_email(
+    to_email,
+    subject,
+    text_content,
+    html_content=None,
+    *,
+    cc=None,
+    bcc=None,
+    attachment=None
+):
+    """
+    Sends an email through the Google Apps Script Email Bridge.
+
+    Required environment variables:
+        GOOGLE_APPS_SCRIPT_URL
+        GOOGLE_APPS_SCRIPT_API_KEY
+
+    Optional environment variables:
+        GOOGLE_APPS_SCRIPT_SENDER_NAME
+        GOOGLE_APPS_SCRIPT_FROM
+
+    Attachment format:
+        {
+            "filename": "report.pdf",
+            "mime_type": "application/pdf",
+            "content": b"..."
+        }
+
+    Returns:
+        True  -> email successfully sent
+        False -> email delivery failed
+    """
+
+    script_url = os.getenv(
+        'GOOGLE_APPS_SCRIPT_URL', ''
+    ).strip()
+
+    api_key = os.getenv(
+        'GOOGLE_APPS_SCRIPT_API_KEY', ''
+    ).strip()
+
+    # ── Configuration validation ──────────────────────
+
+    if not script_url or not api_key:
+        app.logger.error(
+            "Google Apps Script email bridge is not configured. "
+            "Set GOOGLE_APPS_SCRIPT_URL and "
+            "GOOGLE_APPS_SCRIPT_API_KEY."
+        )
         return False
 
-    url = "https://api.brevo.com/v3/smtp/email"
-    headers = {
-        "accept": "application/json",
-        "api-key": api_key,
-        "content-type": "application/json"
-    }
-    
+    if not script_url.startswith('https://'):
+        app.logger.error(
+            "GOOGLE_APPS_SCRIPT_URL must use HTTPS."
+        )
+        return False
+
+    # ── Input validation ──────────────────────────────
+
+    if not all(
+        isinstance(value, str) and value.strip()
+        for value in (to_email, subject, text_content)
+    ):
+        app.logger.error(
+            "Email was not sent: recipient, subject, "
+            "and plain-text body are mandatory."
+        )
+        return False
+
+    if (
+        len(subject) > 250
+        or '\r' in subject
+        or '\n' in subject
+    ):
+        app.logger.error(
+            "Email subject is invalid or exceeds "
+            "the 250-character limit."
+        )
+        return False
+
+    # ── Build Apps Script payload ──────────────────────
+
     payload = {
-        "sender": {"name": "ToPlanBlock", "email": "your-verified-brevo-email@domain.com"},
-        "to": [{"email": to_email}],
-        "subject": subject,
-        "textContent": text_content
+        'apiKey': api_key,
+        'to': to_email.strip(),
+        'subject': subject,
+        'body': text_content,
     }
-    
+
     if html_content:
-        payload["htmlContent"] = html_content
+        payload['htmlBody'] = html_content
+
+    if cc:
+        payload['cc'] = cc
+
+    if bcc:
+        payload['bcc'] = bcc
+
+    sender_name = os.getenv(
+        'GOOGLE_APPS_SCRIPT_SENDER_NAME',
+        'ToPlanBlock'
+    ).strip()
+
+    sender_email = os.getenv(
+        'GOOGLE_APPS_SCRIPT_FROM',
+        ''
+    ).strip()
+
+    if sender_name:
+        payload['name'] = sender_name
+
+    if sender_email:
+        payload['from'] = sender_email
+
+    # ── Optional attachment ───────────────────────────
+
+    if attachment is not None:
+
+        if not isinstance(attachment, dict):
+            app.logger.error(
+                "Email attachment must be a dictionary."
+            )
+            return False
+
+        filename = attachment.get('filename')
+        mime_type = attachment.get('mime_type')
+        content = attachment.get('content')
+
+        if hasattr(content, 'read'):
+            content = content.read()
+
+        if isinstance(content, str):
+            content = content.encode('utf-8')
+
+        if (
+            not isinstance(filename, str)
+            or not filename.strip()
+            or not isinstance(mime_type, str)
+            or not mime_type.strip()
+            or not isinstance(content, bytes)
+        ):
+            app.logger.error(
+                "Invalid attachment: filename, MIME type "
+                "and byte content are required."
+            )
+            return False
+
+        payload['attachment'] = {
+            'bytes': base64.b64encode(content).decode('ascii'),
+            'filename': filename.strip(),
+            'mimeType': mime_type.strip(),
+        }
+
+    # ── Send request to Google Apps Script ─────────────
 
     try:
-        response = requests.post(url, json=payload, headers=headers, timeout=10.0)
-        if response.status_code in [200, 201]:
+
+        response = requests.post(
+            script_url,
+            json=payload,
+            headers={
+                'Accept': 'application/json'
+            },
+            timeout=(5.0, 30.0),
+            allow_redirects=True
+        )
+
+        response.raise_for_status()
+
+        # Google Apps Script returns JSON through
+        # a redirected ContentService URL.
+
+        try:
+            result = response.json()
+
+        except ValueError:
+            app.logger.error(
+                "Google Apps Script returned a non-JSON "
+                "response. Check the deployment URL "
+                "and web-app access permissions."
+            )
+            return False
+
+        # ── Verify delivery result ────────────────────
+
+        if (
+            isinstance(result, dict)
+            and result.get('status') == 'success'
+        ):
+            app.logger.info(
+                "Email successfully sent to %s.",
+                to_email
+            )
             return True
-        app.logger.error(f"Brevo API error {response.status_code}: {response.text}")
-    except Exception as e:
-        app.logger.error(f"Failed to send email via Brevo: {e}")
-        
+
+        error_message = (
+            result.get('message', 'Unknown bridge error')
+            if isinstance(result, dict)
+            else 'Invalid bridge response'
+        )
+
+        error_code = (
+            result.get('code', 'unknown')
+            if isinstance(result, dict)
+            else 'unknown'
+        )
+
+        app.logger.error(
+            "Google Apps Script rejected the email "
+            "(code %s): %s",
+            error_code,
+            error_message
+        )
+
+    except requests.RequestException as error:
+
+        app.logger.error(
+            "Google Apps Script email request failed: %s",
+            error
+        )
+
     return False
+
 
 # ── Security middleware ────────────────────────────────────────────────────────
 @app.before_request

@@ -1,6 +1,7 @@
 # Environment
 .venv/
 .env
+.vscode/
 
 # System files
 __pycache__/
