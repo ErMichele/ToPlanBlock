@@ -116,6 +116,7 @@ class User(db.Model, UserMixin):
     password = db.Column(db.String(200), nullable=False)
     profile_pic_id = db.Column(db.String(100), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.now)
+    is_verified = db.Column(db.Boolean, default=False, nullable=False)
 
     todos = db.relationship(
         "Todo", backref="owner", lazy=True, cascade="all, delete-orphan"
@@ -643,13 +644,30 @@ def register():
             username=username,
             email=email,
             password=bcrypt.generate_password_hash(raw_pw).decode("utf-8"),
+            is_verified=False,
         )
         db.session.add(user)
         try:
             db.session.commit()
-            login_user(user)
-            flash("Account created! Welcome!", "success")
-            return redirect(url_for("todo"))
+
+            # Generate verification token (expires in 7 days = 604800 seconds)
+            token = generate_secure_token(email, salt="email-verification")
+            verify_url = url_for("verify_email", token=token, _external=True)
+            
+            subject = "Verify Your ToPlanBlock Account"
+            text_content = (
+                f"Hi {username},\n\n"
+                f"Thank you for registering with ToPlanBlock! Please verify your account by clicking the link below:\n\n"
+                f"{verify_url}\n\n"
+                f"Note: If you do not verify your account within 7 days, your account and data will be automatically deleted.\n\n"
+                f"If you did not create this account, please ignore this email."
+            )
+            
+            send_email(email, subject, text_content)
+
+            flash("Registration successful! Please check your email to verify your account.", "success")
+            return redirect(url_for("login"))
+            
         except IntegrityError:
             db.session.rollback()
             flash("Username or email already exists.", "danger")
@@ -663,16 +681,33 @@ def login():
     if current_user.is_authenticated:
         return redirect(url_for("todo"))
 
+    # Automatically delete unverified accounts older than 7 days
+    week_ago = datetime.now() - timedelta(days=7)
+    unverified_to_delete = User.query.filter(
+        User.is_verified == False, User.created_at < week_ago
+    ).all()
+    
+    for u in unverified_to_delete:
+        if u.profile_pic_id:
+            folder = f"ToPlanBlock/{os.getenv('BRANCH', 'dev')}/profile_pics"
+            cloudinary.uploader.destroy(f"{folder}/{u.profile_pic_id}", invalidate=True)
+        db.session.delete(u)
+    if unverified_to_delete:
+        db.session.commit()
+
     if request.method == "POST":
         email = request.form.get("email", "").strip().lower()
         pw = request.form.get("password", "")
         user = User.query.filter_by(email=email).first()
 
         if user and bcrypt.check_password_hash(user.password, pw):
+            if not user.is_verified:
+                flash("Please verify your email address before logging in. Check your inbox for the verification link.", "warning")
+                return redirect(url_for("login"))
+
             session.clear()
             login_user(user)
             next_page = request.args.get("next")
-            # Reject open redirects: only follow the 'next' param if it's a relative path
             if not next_page or urlparse(next_page).netloc != "":
                 next_page = url_for("todo")
             flash("Logged in successfully.", "success")
@@ -690,6 +725,27 @@ def logout():
     session.clear()
     flash("Logged out.", "info")
     return redirect(url_for("landing"))
+
+
+@app.route("/verify/<token>")
+def verify_email(token):
+    # Token valid for 7 days (604800 seconds)
+    email = verify_secure_token(token, salt="email-verification", expiration=604800)
+    
+    if not email:
+        flash("The verification link is invalid or has expired.", "danger")
+        return redirect(url_for("login"))
+
+    user = User.query.filter_by(email=email).first_or_404()
+    
+    if user.is_verified:
+        flash("Account is already verified. Please log in.", "info")
+    else:
+        user.is_verified = True
+        db.session.commit()
+        flash("Email verified successfully! You can now log in.", "success")
+        
+    return redirect(url_for("login"))
 
 
 # ── Task routes ────────────────────────────────────────────────────────────────
