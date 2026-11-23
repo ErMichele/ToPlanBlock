@@ -34,7 +34,20 @@
         </form>
         
         <div class="text-center mt-4">
-          <p class="mb-0 text-muted">Don't have an account? <a href="{{ url_for('register') }}" class="text-decoration-none fw-bold">Create one</a></p>
+          <p class="mb-1 text-muted">Don't have an account? <a href="{{ url_for('register') }}" class="text-decoration-none fw-bold">Create one</a></p>
+          <a class="small text-decoration-none" data-bs-toggle="collapse" href="#resendTokenCollapse" role="button" aria-expanded="false" aria-controls="resendTokenCollapse">
+            Didn't receive or expired verification link?
+          </a>
+        </div>
+
+        <div class="collapse mt-3" id="resendTokenCollapse">
+          <form action="{{ url_for('resend_verification') }}" method="POST" class="border-top pt-3">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+            <div class="input-group input-group-sm">
+              <input type="email" name="email" class="form-control" placeholder="Enter your account email" required>
+              <button class="btn btn-outline-primary fw-semibold" type="submit">Resend</button>
+            </div>
+          </form>
         </div>
       </div>
     </div>

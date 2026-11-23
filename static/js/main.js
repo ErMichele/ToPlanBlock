@@ -7,6 +7,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     checkCookies();
     initThemeListener();
+    initUnverifiedBanner();
 
     document.querySelectorAll('.toast').forEach(el => {
         new bootstrap.Toast(el, { delay: 5000 }).show();
@@ -100,3 +101,28 @@ window.showToast = function (message, type = 'dark') {
 
     el.addEventListener('hidden.bs.toast', () => el.remove());
 };
+
+function initUnverifiedBanner() {
+    const banner = document.getElementById('unverified-warning-banner');
+    const dismissBtn = document.getElementById('dismiss-unverified-btn');
+    if (!banner) return;
+
+    const DISMISS_KEY = 'unverifiedBannerDismissedAt';
+    const HIDE_DURATION_MS = 30 * 60 * 1000; // Reappear after 30 minutes
+    const dismissedAt = sessionStorage.getItem(DISMISS_KEY);
+
+    // Show banner if never dismissed in this tab session, or if 30 minutes have passed
+    if (!dismissedAt || (Date.now() - parseInt(dismissedAt, 10)) > HIDE_DURATION_MS) {
+        sessionStorage.removeItem(DISMISS_KEY);
+        banner.classList.remove('d-none');
+        banner.classList.add('d-flex');
+    }
+
+    if (dismissBtn) {
+        dismissBtn.addEventListener('click', () => {
+            sessionStorage.setItem(DISMISS_KEY, Date.now().toString());
+            banner.classList.remove('d-flex');
+            banner.classList.add('d-none');
+        });
+    }
+}

@@ -1,3 +1,5 @@
+sessionStorage.removeItem('unverifiedBannerDismissedAt');
+
 document.querySelectorAll('.password-toggle-btn').forEach(button => {
     button.addEventListener('click', function () {
         const input = this.closest('.input-group').querySelector('.password-toggle-input');

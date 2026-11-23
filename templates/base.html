@@ -100,6 +100,24 @@
   </nav>
 
   <main class="content-wrapper container py-4 flex-grow-1 mt-2">
+    {% if current_user.is_authenticated and not current_user.is_verified %}
+      <div id="unverified-warning-banner" class="alert alert-warning d-none flex-column flex-sm-row justify-content-between align-items-center shadow-sm mb-4" role="alert">
+        <div class="mb-2 mb-sm-0 me-sm-3">
+          <i class="bi bi-exclamation-triangle-fill me-2"></i>
+          <strong>Unverified Account:</strong> Please verify your email within 7 days to stop the imminent wipe of your account and data.
+        </div>
+        <div class="d-flex align-items-center gap-2 ms-auto ms-sm-0">
+          <form action="{{ url_for('resend_verification') }}" method="POST" class="d-inline m-0">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-sm btn-warning fw-bold text-dark text-nowrap">
+              Resend Email
+            </button>
+          </form>
+          <button type="button" id="dismiss-unverified-btn" class="btn-close" aria-label="Close"></button>
+        </div>
+      </div>
+    {% endif %}
+    
     {% block content %}{% endblock %}
   </main>
 

@@ -650,7 +650,7 @@ def register():
         try:
             db.session.commit()
 
-            # Generate verification token (expires in 7 days = 604800 seconds)
+            # Generate verification token (expires in 1 hour = 3600 seconds)
             token = generate_secure_token(email, salt="email-verification")
             verify_url = url_for("verify_email", token=token, _external=True)
             
@@ -659,14 +659,15 @@ def register():
                 f"Hi {username},\n\n"
                 f"Thank you for registering with ToPlanBlock! Please verify your account by clicking the link below:\n\n"
                 f"{verify_url}\n\n"
-                f"Note: If you do not verify your account within 7 days, your account and data will be automatically deleted.\n\n"
+                f"Note: This token expires in 1 hour. If you do not verify your account within 7 days, your account and data will be automatically deleted.\n\n"
                 f"If you did not create this account, please ignore this email."
             )
             
             send_email(email, subject, text_content)
 
-            flash("Registration successful! Please check your email to verify your account.", "success")
-            return redirect(url_for("login"))
+            login_user(user)
+            flash("Registration successful! Please check your email to verify your account before the 7-day wipe.", "success")
+            return redirect(url_for("todo"))
             
         except IntegrityError:
             db.session.rollback()
@@ -701,12 +702,12 @@ def login():
         user = User.query.filter_by(email=email).first()
 
         if user and bcrypt.check_password_hash(user.password, pw):
-            if not user.is_verified:
-                flash("Please verify your email address before logging in. Check your inbox for the verification link.", "warning")
-                return redirect(url_for("login"))
-
             session.clear()
             login_user(user)
+            
+            if not user.is_verified:
+                flash("Warning: Your account is not verified! Please verify your email to stop the imminent 7-day data wipe.", "warning")
+
             next_page = request.args.get("next")
             if not next_page or urlparse(next_page).netloc != "":
                 next_page = url_for("todo")
@@ -729,8 +730,8 @@ def logout():
 
 @app.route("/verify/<token>")
 def verify_email(token):
-    # Token valid for 7 days (604800 seconds)
-    email = verify_secure_token(token, salt="email-verification", expiration=604800)
+    # Token valid for 1 hour (3600 seconds)
+    email = verify_secure_token(token, salt="email-verification", expiration=3600)
     
     if not email:
         flash("The verification link is invalid or has expired.", "danger")
@@ -739,13 +740,49 @@ def verify_email(token):
     user = User.query.filter_by(email=email).first_or_404()
     
     if user.is_verified:
-        flash("Account is already verified. Please log in.", "info")
+        flash("Account is already verified.", "info")
+        return redirect(url_for("todo") if current_user.is_authenticated else url_for("login"))
     else:
         user.is_verified = True
         db.session.commit()
-        flash("Email verified successfully! You can now log in.", "success")
+        flash("Email verified successfully!", "success")
         
-    return redirect(url_for("login"))
+    if not current_user.is_authenticated:
+        login_user(user)
+        
+    return redirect(url_for("todo"))
+
+
+@app.route("/resend-verification", methods=["POST"])
+@limiter.limit("3 per 15 minutes")
+def resend_verification():
+    email = (
+        current_user.email
+        if current_user.is_authenticated
+        else request.form.get("email", "").strip().lower()
+    )
+
+    if not email:
+        flash("Please provide your email address.", "danger")
+        return redirect(url_for("login"))
+
+    user = User.query.filter_by(email=email).first()
+
+    if user and not user.is_verified:
+        token = generate_secure_token(user.email, salt="email-verification")
+        verify_url = url_for("verify_email", token=token, _external=True)
+
+        subject = "New Verification Token - ToPlanBlock"
+        text_content = (
+            f"Hi {user.username},\n\n"
+            f"Here is your new verification link: {verify_url}\n\n"
+            f"Note: This token expires in 1 hour."
+        )
+        send_email(user.email, subject, text_content)
+
+    # Generic message prevents email enumeration when logged out
+    flash("If an unverified account exists for that email, a new verification link has been sent.", "info")
+    return redirect(url_for("todo") if current_user.is_authenticated else url_for("login"))
 
 
 # ── Task routes ────────────────────────────────────────────────────────────────
